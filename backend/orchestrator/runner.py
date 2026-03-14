@@ -186,6 +186,10 @@ class GameRunner:
             logger.info("Winner: %s | Rounds: %d | Eliminated: %s",
                         result.winner, result.total_rounds, ", ".join(result.eliminated_order))
         logger.info("Script saved: %s", script_path)
+
+        # 8. Generate TTS audio
+        await self._generate_tts(script_path)
+
         return script
 
     async def _agent_turn(self, engine, agent: PlayerAgent, player_id: str, strategy) -> AgentResponse:
@@ -240,6 +244,18 @@ class GameRunner:
         eliminated = public_state.get("eliminated_players", [])
         last_eliminated = eliminated[-1] if eliminated else None
         return VoteResult(eliminated=last_eliminated)
+
+    async def _generate_tts(self, script_path: str) -> None:
+        """Generate TTS audio for the game script. Skips if edge-tts not installed."""
+        try:
+            from backend.tts.generate import generate_audio
+            logger.info("Generating TTS audio...")
+            manifest = await generate_audio(script_path)
+            logger.info("TTS done: %d files generated", len(manifest.get("files", [])))
+        except ImportError:
+            logger.info("edge-tts not installed, skipping TTS generation")
+        except Exception:
+            logger.exception("TTS generation failed, skipping")
 
     def _build_player_configs(self) -> list[PlayerConfig]:
         """Extract player configs from game config and resolve LLM defaults."""

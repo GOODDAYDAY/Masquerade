@@ -218,3 +218,8 @@ __marimo__/
 /.idea/vcs.xml
 /logs/
 /output/
+
+# Frontend
+node_modules/
+frontend/dist/
+*.tsbuildinfo

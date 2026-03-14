@@ -1,0 +1,66 @@
+@startuml
+title Playback Flow - Script Loading to Finale
+
+actor User
+participant ScriptLoader
+participant Theater
+participant TimelineController as TL
+participant AudioManager as AM
+participant "Scene\nComponents" as Scene
+
+== Script Loading ==
+
+User -> ScriptLoader : Drag & drop JSON\nor URL param
+ScriptLoader -> ScriptLoader : Validate GameScript format
+ScriptLoader -> Theater : onLoad(gameScript)
+
+== Initialization ==
+
+Theater -> TL : new TimelineController(script)
+TL -> TL : buildSceneList()
+note right: Opening -> [Round Title\n-> Speaking events...\n-> Vote Result] x N\n-> Finale
+
+Theater -> AM : new AudioManager()
+AM -> AM : loadTTSManifest(audioDir)
+alt manifest found
+  AM --> Theater : TTS available
+else manifest not found
+  AM --> Theater : Silent mode
+end
+
+== Playback ==
+
+User -> Theater : Click Play
+Theater -> TL : play()
+
+loop for each scene
+  TL -> Theater : onSceneChange(scene)
+  Theater -> Scene : Render scene component
+
+  alt Speaking Scene
+    Scene -> Scene : AnimatedText (typewriter)
+    Scene -> AM : playTTS(round, eventIndex, playerId)
+    AM --> Scene : Audio playing
+    Scene -> Scene : Show expression icon
+    opt Director Commentary enabled
+      Scene -> Scene : Show thinking overlay
+    end
+  end
+
+  alt Voting Scene
+    Scene -> Scene : Show "Voting..." animation
+    Scene -> Scene : Reveal votes (line animation)
+    Scene -> Scene : Vote count animation
+    opt Player eliminated
+      Scene -> Scene : Elimination effect
+    end
+  end
+
+  Scene --> TL : onComplete()
+  TL -> TL : nextScene()
+end
+
+TL -> Theater : onComplete()
+Theater -> Scene : Show Finale (stats)
+
+@enduml

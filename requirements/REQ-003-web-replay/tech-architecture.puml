@@ -1,0 +1,74 @@
+@startuml
+skinparam componentStyle rectangle
+skinparam backgroundColor #FEFEFE
+
+title REQ-003 Architecture Overview
+
+package "TTS Script (Python)" as TTS {
+  [generate.py] as Gen
+  [voices.py] as Voice
+  Gen --> Voice : assign voices
+}
+
+package "Frontend (React + TypeScript + Vite)" as FE {
+
+  package "Entry" {
+    [ScriptLoader] as SL
+  }
+
+  package "Core (Pure Logic)" {
+    [TimelineController] as TL
+    [AudioManager] as AM
+  }
+
+  package "Scenes" {
+    [OpeningScene] as OS
+    [SpeakingScene] as SS
+    [VotingScene] as VS
+    [FinaleScene] as FS
+  }
+
+  package "Shared Components" {
+    [PlayerAvatar] as PA
+    [AnimatedText] as AT
+    [ExpressionIcon] as EI
+    [RoundTitle] as RT
+  }
+
+  [Theater] as TH
+  [PlaybackControls] as PC
+
+  SL --> TH : GameScript
+  TH --> TL : init & drive
+  TH --> AM : init
+  TH --> OS
+  TH --> SS
+  TH --> VS
+  TH --> FS
+
+  PC --> TL : play/pause/seek
+  PC --> AM : volume control
+
+  OS --> PA
+  SS --> PA
+  SS --> AT
+  SS --> EI
+  SS --> AM : play TTS
+  VS --> PA
+  VS --> RT
+  SS --> RT
+  FS --> PA
+  FS --> AT
+}
+
+file "GameScript\nJSON" as JSON
+folder "Audio MP3s\n+ manifest.json" as Audio
+folder "assets/bgm/" as BGM
+
+Gen ..> JSON : read
+Gen ..> Audio : write
+SL ..> JSON : load
+AM ..> Audio : fetch
+AM ..> BGM : fetch (optional)
+
+@enduml
