@@ -29,7 +29,7 @@ class AppSettings(BaseSettings):
 
     log_level: str = "INFO"
     log_dir: str = "logs"
-    scripts_dir: str = "scripts"
+    scripts_dir: str = "output/scripts"
     output_dir: str = "output"
     llm: LLMDefaults = Field(default_factory=LLMDefaults)
 

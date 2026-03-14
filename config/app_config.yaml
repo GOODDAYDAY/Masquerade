@@ -5,7 +5,7 @@
 log_level: "INFO"
 log_dir: "logs"
 
-scripts_dir: "scripts"
+scripts_dir: "output/scripts"
 output_dir: "output"
 
 # Global LLM defaults — players inherit these when not specified in game_config.yaml

@@ -1,8 +1,13 @@
 @echo off
 chcp 65001 >nul
-REM Run all tests
-REM Prerequisite: pip install -e ".[dev]"
+REM Run integration tests
+
+cd /d "%~dp0\.."
 
 echo Running tests...
-python -m pytest tests/ -v
+python -m backend.tests.test_spy_game
+if %errorlevel% neq 0 (
+    echo Tests FAILED.
+    exit /b 1
+)
 echo Tests completed.
