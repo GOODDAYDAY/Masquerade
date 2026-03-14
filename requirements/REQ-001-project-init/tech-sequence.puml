@@ -1,0 +1,122 @@
+@startuml
+title Complete Game Flow - Sequence Diagram
+
+participant "API\n(FastAPI)" as API
+participant "GameManager" as GM
+participant "GameRunner" as Runner
+participant "GameRegistry" as Reg
+participant "SpyGame\n(Engine)" as Engine
+participant "PlayerAgent" as Agent
+participant "LLMClient" as LLM
+participant "GameRecorder" as Recorder
+participant "EventBus" as Bus
+
+API -> GM: create_and_run(request)
+activate GM
+GM -> GM: generate game_id
+GM -> Runner: new GameRunner(config)
+GM -> Runner: run() [async task]
+activate Runner
+
+== Initialization ==
+
+Runner -> Reg: get_game_engine("spy")
+Reg --> Runner: SpyGame class
+
+Runner -> Engine: setup(player_ids, config)
+activate Engine
+Engine -> Engine: assign words & roles
+Engine --> Runner: ok
+deactivate Engine
+
+Runner -> Agent: create PlayerAgent x N
+Runner -> Recorder: new GameRecorder(game_info, players)
+Runner -> Bus: recorder.subscribe("*")
+
+Runner -> Bus: emit("game_start")
+
+== Game Loop ==
+
+loop while not engine.is_ended()
+
+  Runner -> Bus: emit("round_start")
+  Runner -> Recorder: start_round(n)
+
+  group Speaking Phase
+    loop each alive player
+      Runner -> Engine: get_current_player()
+      Engine --> Runner: player_id
+
+      Runner -> Engine: get_public_state()
+      Runner -> Engine: get_private_info(player_id)
+      Runner -> Engine: get_game_rules_prompt()
+      Runner -> Engine: get_tools_schema()
+
+      Runner -> Agent: think_and_act(context, tools)
+      activate Agent
+      Agent -> Agent: build messages\n(system + memory + state)
+      Agent -> LLM: chat_with_tools(messages, tools)
+      LLM --> Agent: thinking + tool_call
+      Agent -> Agent: parse tool_call -> Action
+      Agent --> Runner: AgentResponse
+      deactivate Agent
+
+      Runner -> Engine: apply_action(player_id, action)
+      Engine --> Runner: ActionResult
+
+      Runner -> Recorder: record_event(event)
+      Runner -> Bus: emit("player_speak", event)
+
+      Runner -> Agent: update_public_memory(result)\n[broadcast to ALL agents]
+    end
+  end
+
+  group Voting Phase
+    loop each alive player
+      Runner -> Agent: think_and_act(vote context)
+      Agent -> LLM: chat_with_tools(messages, [vote])
+      LLM --> Agent: tool_call(vote)
+      Agent --> Runner: AgentResponse(vote action)
+      Runner -> Engine: apply_action(vote)
+      Runner -> Recorder: record_event(vote_event)
+    end
+
+    Runner -> Engine: get_public_state()
+    note right: includes vote tally
+
+    alt player eliminated
+      Runner -> Recorder: record_vote_result(eliminated)
+      Runner -> Bus: emit("player_eliminated")
+    else tie - no elimination
+      Runner -> Recorder: record_vote_result(none)
+    end
+  end
+
+end
+
+== Game End ==
+
+Runner -> Engine: get_result()
+Engine --> Runner: GameResult
+
+Runner -> Recorder: set_result(result)
+Runner -> Bus: emit("game_end")
+
+Runner -> Recorder: export()
+Recorder --> Runner: GameScript
+
+Runner -> Recorder: save("scripts/")
+Recorder --> Runner: file_path
+
+Runner --> GM: GameScript
+deactivate Runner
+
+GM -> GM: update status = "completed"
+deactivate GM
+
+...later...
+
+API -> GM: get_script(game_id)
+GM --> API: GameScript JSON
+
+@enduml

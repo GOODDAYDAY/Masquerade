@@ -1,0 +1,18 @@
+# Masquerade Application Configuration
+# Sensitive values (API keys) should go in .env, not here.
+# Override with env vars prefixed MASQUERADE_ (e.g. MASQUERADE_LOG_LEVEL=DEBUG)
+
+log_level: "INFO"
+log_dir: "logs"
+
+scripts_dir: "scripts"
+output_dir: "output"
+
+# Global LLM defaults — players inherit these when not specified in game_config.yaml
+llm:
+  model: "deepseek-chat"
+  api_base: "https://api.deepseek.com/v1"
+  api_key: ""  # Set via .env: MASQUERADE_LLM__API_KEY
+  temperature: 0.7
+  max_retries: 3
+  timeout: 60

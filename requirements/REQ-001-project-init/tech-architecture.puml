@@ -1,0 +1,88 @@
+@startuml
+title Masquerade - Architecture Diagram
+
+skinparam componentStyle rectangle
+
+package "backend/" {
+
+  package "api/" as API {
+    [main.py] as ApiMain
+    [routes/games.py] as ApiRoutes
+    [game_manager.py] as GameMgr
+    [models.py] as ApiModels
+  }
+
+  package "orchestrator/" as ORCH {
+    [runner.py] as Runner
+    [event_bus.py] as EventBus
+  }
+
+  package "engine/" as ENGINE {
+    [base.py] as EngineBase
+    [registry.py] as Registry
+    [models.py] as EngineModels
+
+    package "spy/" as SPY {
+      [game.py] as SpyGame
+      [prompts.py] as SpyPrompts
+      [words.py] as SpyWords
+    }
+
+    package "new_game/ (plugin)" as PLUGIN #line.dashed {
+      [game.py] as NewGame
+    }
+  }
+
+  package "agent/" as AGENT {
+    [player.py] as Player
+    [llm_client.py] as LLMClient
+    [memory.py] as Memory
+    [models.py] as AgentModels
+  }
+
+  package "script/" as SCRIPT {
+    [schema.py] as Schema
+    [recorder.py] as Recorder
+  }
+
+  package "config/" as CONFIG {
+    [settings.py] as Settings
+    [app_config.yaml] as AppYaml
+    [game_config.yaml] as GameYaml
+  }
+
+  package "common/" as COMMON {
+    [logging.py] as Logging
+    [exceptions.py] as Exceptions
+  }
+}
+
+cloud "LLM API\n(OpenAI-compatible)" as LLM
+
+ApiRoutes --> GameMgr : create/query
+GameMgr --> Runner : run game
+Runner --> Registry : get engine
+Runner --> Player : drive agent
+Runner --> Recorder : record events
+Registry --> SpyGame
+Registry ..> NewGame : future plugin
+Player --> LLMClient
+LLMClient --> LLM
+Recorder --> Schema
+SpyGame --> EngineBase : extends
+SpyGame --> SpyPrompts
+SpyGame --> SpyWords
+NewGame --> EngineBase : extends
+Runner --> EventBus
+Recorder --> EventBus : subscribe
+
+Settings --> AppYaml : load
+Settings --> GameYaml : load
+
+note right of PLUGIN
+  New game = new subpackage
+  + @register_game decorator
+  Zero changes to existing code
+end note
+
+@enduml

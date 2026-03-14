@@ -1,0 +1,27 @@
+# Who Is The Spy — Game Configuration
+# This file is entirely game-specific. The spy engine validates all fields.
+
+spy_count: 1
+max_rounds: 10
+
+# Optional: custom word pairs (if omitted, uses built-in default word pairs)
+# word_pairs:
+#   - ["火锅", "麻辣烫"]
+#   - ["眼镜", "墨镜"]
+
+players:
+  - name: "王磊"
+    persona: "谨慎保守，善于观察，习惯用排除法推理"
+    appearance: "28岁，灰色卫衣，黑框眼镜，圆脸"
+
+  - name: "林小雨"
+    persona: "活泼直接，喜欢试探别人，有时候会故意说反话"
+    appearance: "24岁，白色T恤，马尾辫，大眼睛"
+
+  - name: "张大海"
+    persona: "沉稳冷静，话不多但每句都有分量"
+    appearance: "35岁，深蓝衬衫，短发，方脸"
+
+  - name: "陈思"
+    persona: "心思细腻，善于察言观色，容易紧张"
+    appearance: "26岁，淡粉色外套，长发，瓜子脸"

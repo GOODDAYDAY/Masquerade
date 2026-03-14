@@ -1,0 +1,154 @@
+@startuml
+title Masquerade - Core Class Diagram
+
+' ===== Engine Layer =====
+package "engine" {
+  abstract class GameEngine {
+    + {abstract} setup(players: list[str], config: dict): None
+    + {abstract} get_public_state(): dict
+    + {abstract} get_private_info(player_id: str): dict
+    + {abstract} get_available_actions(player_id: str): list[str]
+    + {abstract} apply_action(player_id: str, action: Action): ActionResult
+    + {abstract} get_current_player(): str | None
+    + {abstract} is_ended(): bool
+    + {abstract} get_result(): GameResult | None
+    + {abstract} get_game_rules_prompt(): str
+    + {abstract} get_tools_schema(): list[dict]
+  }
+
+  class Action {
+    + type: str
+    + player_id: str
+    + payload: dict
+  }
+
+  class ActionResult {
+    + success: bool
+    + message: str
+    + public_info: dict | None
+  }
+
+  class GameResult {
+    + winner: str
+    + eliminated_order: list[str]
+    + total_rounds: int
+  }
+
+  class GameRegistry <<singleton>> {
+    - _registry: dict[str, type[GameEngine]]
+    + register_game(name: str): decorator
+    + get_game_engine(name: str): type[GameEngine]
+    + list_games(): list[str]
+  }
+}
+
+package "engine.spy" {
+  class SpyGame {
+    - phase: GamePhase
+    - players: dict[str, PlayerState]
+    - current_player_idx: int
+    - round_number: int
+    - votes: dict[str, str]
+    - word_pair: tuple[str, str]
+    + setup(players, config): None
+    + apply_action(player_id, action): ActionResult
+    + get_game_rules_prompt(): str
+    + get_tools_schema(): list[dict]
+  }
+
+  enum GamePhase {
+    WAITING
+    SPEAKING
+    VOTING
+    ELIMINATING
+    ENDED
+  }
+}
+
+' ===== Agent Layer =====
+package "agent" {
+  class PlayerAgent {
+    - player_id: str
+    - config: PlayerConfig
+    - memory: PlayerMemory
+    - llm_client: LLMClient
+    + think_and_act(rules, state, info, actions, tools): AgentResponse
+    + update_public_memory(event: str): None
+  }
+
+  class LLMClient {
+    - model: str
+    - api_base: str
+    - client: AsyncOpenAI
+    + chat_with_tools(messages, tools, temperature): LLMResponse
+  }
+
+  class PlayerMemory {
+    - private_memory: list[str]
+    - public_memory: list[str]
+    + add_private(content: str): None
+    + add_public(content: str): None
+    + build_context_messages(): list[dict]
+  }
+
+  class AgentResponse {
+    + thinking: str
+    + action: Action
+    + expression: str
+    + thinking_duration_ms: int
+  }
+}
+
+' ===== Script Layer =====
+package "script" {
+  class GameScript {
+    + game: GameInfo
+    + players: list[PlayerInfo]
+    + rounds: list[RoundData]
+    + result: GameResult | None
+  }
+
+  class GameRecorder {
+    - script: GameScript
+    - current_round: RoundData
+    + start_round(round_number: int): None
+    + record_event(event: GameEvent): None
+    + record_vote_result(result: VoteResult): None
+    + set_result(result: GameResult): None
+    + export(): GameScript
+    + save(output_dir: str): str
+  }
+}
+
+' ===== Orchestrator Layer =====
+package "orchestrator" {
+  class GameRunner {
+    - engine: GameEngine
+    - agents: dict[str, PlayerAgent]
+    - recorder: GameRecorder
+    - event_bus: EventBus
+    + run(): GameScript
+  }
+
+  class EventBus {
+    - subscribers: dict[str, list[Callable]]
+    + subscribe(event_type: str, callback: Callable): None
+    + emit(event_type: str, data: Any): None
+  }
+}
+
+' ===== Relationships =====
+SpyGame --|> GameEngine
+GameRegistry --> GameEngine : manages
+GameRunner --> GameEngine : uses
+GameRunner --> PlayerAgent : drives
+GameRunner --> GameRecorder : records to
+GameRunner --> EventBus : emits events
+GameRecorder --> EventBus : subscribes
+PlayerAgent --> LLMClient : calls LLM
+PlayerAgent --> PlayerMemory : manages
+GameEngine ..> Action : consumes
+GameEngine ..> ActionResult : produces
+PlayerAgent ..> AgentResponse : produces
+
+@enduml

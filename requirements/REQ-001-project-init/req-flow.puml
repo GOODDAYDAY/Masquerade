@@ -1,0 +1,54 @@
+@startuml
+title Spy Game - Main Flow
+
+start
+
+:Load config (game type, players);
+:GameRegistry.get_engine("spy");
+:Engine.setup(players, config);
+note right: Assign words & roles
+
+while (Engine.is_ended() == false?) is (no)
+
+  partition "Speaking Phase" {
+    while (All alive players spoke?) is (no)
+      :Engine.get_current_player();
+      :Build context:\n- public state\n- private info\n- rules prompt\n- tools schema;
+      :Agent.think_and_act();
+      note right: Returns thinking + action
+      :Engine.apply_action(speak);
+      :Recorder.record_event();
+      :Broadcast to all agents public_memory;
+    endwhile (yes)
+  }
+
+  partition "Voting Phase" {
+    while (All alive players voted?) is (no)
+      :Engine.get_current_player();
+      :Agent.think_and_act();
+      :Engine.apply_action(vote);
+      :Recorder.record_event();
+    endwhile (yes)
+  }
+
+  partition "Elimination Phase" {
+    :Count votes;
+    if (Tie?) then (yes)
+      :No elimination;
+    else (no)
+      :Eliminate top-voted player;
+      :Recorder.record_elimination();
+    endif
+  }
+
+  :Check win condition;
+
+endwhile (yes)
+
+:Engine.get_result();
+:Recorder.export() -> script JSON;
+:Save to scripts/ directory;
+
+stop
+
+@enduml

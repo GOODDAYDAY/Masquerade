@@ -1,0 +1,47 @@
+@startuml
+title Masquerade - Use Case Diagram
+
+actor Developer
+actor "API Consumer" as Consumer
+
+package "Game Engine" {
+  usecase "Register New Game" as UC1
+  usecase "Run Spy Game" as UC2
+}
+
+package "Agent" {
+  usecase "Configure LLM Player" as UC3
+  usecase "Think and Act" as UC4
+}
+
+package "Orchestrator" {
+  usecase "Drive Full Game" as UC5
+}
+
+package "Script" {
+  usecase "Record Game Events" as UC6
+  usecase "Export Script JSON" as UC7
+}
+
+package "API" {
+  usecase "Create Game" as UC8
+  usecase "Query Game Status" as UC9
+  usecase "Get Script" as UC10
+  usecase "List Scripts" as UC11
+}
+
+Developer --> UC1
+Developer --> UC3
+
+Consumer --> UC8
+Consumer --> UC9
+Consumer --> UC10
+Consumer --> UC11
+
+UC8 --> UC5 : triggers
+UC5 --> UC2 : uses
+UC5 --> UC4 : drives
+UC5 --> UC6 : hooks
+UC6 --> UC7 : exports
+
+@enduml

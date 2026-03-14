@@ -1,0 +1,62 @@
+@startuml
+title Single Turn - Sequence Diagram
+
+participant API
+participant Orchestrator
+participant Engine
+participant Agent
+participant LLMClient
+participant Recorder
+
+API -> Orchestrator: run(game_config)
+activate Orchestrator
+
+Orchestrator -> Engine: setup(players, config)
+Engine --> Orchestrator: ok
+
+loop until game ends
+
+  Orchestrator -> Engine: get_current_player()
+  Engine --> Orchestrator: player_id
+
+  Orchestrator -> Engine: get_public_state()
+  Engine --> Orchestrator: public_state
+
+  Orchestrator -> Engine: get_private_info(player_id)
+  Engine --> Orchestrator: private_info
+
+  Orchestrator -> Engine: get_game_rules_prompt()
+  Engine --> Orchestrator: rules_prompt
+
+  Orchestrator -> Engine: get_tools_schema()
+  Engine --> Orchestrator: tools
+
+  Orchestrator -> Agent: think_and_act(context, tools)
+  activate Agent
+
+  Agent -> LLMClient: call(messages, tools)
+  LLMClient --> Agent: thinking + tool_call
+
+  Agent --> Orchestrator: action
+  deactivate Agent
+
+  Orchestrator -> Engine: apply_action(player_id, action)
+  Engine --> Orchestrator: updated_state
+
+  Orchestrator -> Recorder: record_event(event)
+
+  Orchestrator -> Agent: update_public_memory(result)
+  note right: broadcast to all agents
+
+end
+
+Orchestrator -> Engine: get_result()
+Engine --> Orchestrator: game_result
+
+Orchestrator -> Recorder: export()
+Recorder --> Orchestrator: GameScript JSON
+
+Orchestrator --> API: game_id + status
+deactivate Orchestrator
+
+@enduml
