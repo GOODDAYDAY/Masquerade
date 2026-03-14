@@ -5,6 +5,7 @@ Internally, it orchestrates a LangGraph workflow with multiple decision nodes.
 Game-specific strategy (prompt templates) is injected by the orchestrator.
 """
 
+import json
 import time
 
 from backend.agent.graph import build_player_graph
@@ -55,6 +56,7 @@ class PlayerAgent:
 
         # Build initial state for the LangGraph
         initial_state: AgentState = {
+            "player_id": self.player_id,
             "game_rules_prompt": game_rules_prompt,
             "public_state": public_state,
             "private_info": private_info,
@@ -86,13 +88,17 @@ class PlayerAgent:
         action_payload = result.get("final_action_payload", {})
 
         # Build thinking summary from all stages
+        # LLM may return str or dict for these fields — normalize to str
         thinking_parts = []
         if result.get("situation_analysis"):
-            thinking_parts.append("【局势分析】" + result["situation_analysis"])
+            val = result["situation_analysis"]
+            thinking_parts.append("【局势分析】" + (json.dumps(val, ensure_ascii=False) if isinstance(val, dict) else str(val)))
         if result.get("strategy"):
-            thinking_parts.append("【策略】" + result["strategy"])
+            val = result["strategy"]
+            thinking_parts.append("【策略】" + (json.dumps(val, ensure_ascii=False) if isinstance(val, dict) else str(val)))
         if result.get("evaluation_feedback"):
-            thinking_parts.append("【评估反馈】" + result["evaluation_feedback"])
+            val = result["evaluation_feedback"]
+            thinking_parts.append("【评估反馈】" + (json.dumps(val, ensure_ascii=False) if isinstance(val, dict) else str(val)))
         full_thinking = "\n".join(thinking_parts) if thinking_parts else "No detailed thinking"
 
         # Store thinking in private memory

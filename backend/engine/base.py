@@ -27,7 +27,11 @@ class GameEngine(ABC):
 
     @abstractmethod
     def get_private_info(self, player_id: str) -> dict:
-        """Return information visible only to the specified player."""
+        """Return information visible only to the specified player (NOT role)."""
+
+    @abstractmethod
+    def get_role_info(self, player_id: str) -> dict:
+        """Return god-view info (role + word) for recording. NOT for agents."""
 
     @abstractmethod
     def get_available_actions(self, player_id: str) -> list[str]:

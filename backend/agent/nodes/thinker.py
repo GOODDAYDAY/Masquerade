@@ -22,6 +22,7 @@ async def thinker_node(state: AgentState, llm_client: LLMClient) -> dict:
     # Use the game-specific thinker prompt
     prompt_template = state.get("thinker_prompt", "")
     user_prompt = prompt_template.format(
+        player_id=state.get("player_id", ""),
         private_info=json.dumps(state.get("private_info", {}), ensure_ascii=False),
         public_state=json.dumps(state.get("public_state", {}), ensure_ascii=False),
         available_actions=state.get("available_actions", []),
@@ -34,6 +35,14 @@ async def thinker_node(state: AgentState, llm_client: LLMClient) -> dict:
         user_prompt += "\n请重新分析并改进你的策略。"
 
     messages.append({"role": "user", "content": user_prompt})
+
+    player_id = state.get("player_id", "?")
+    retry_count = state.get("retry_count", 0)
+    if retry_count > 0:
+        logger.info("[%s] Thinker: retrying (attempt %d), feedback: %s",
+                     player_id, retry_count + 1, feedback[:100] if feedback else "")
+    else:
+        logger.info("[%s] Thinker: analyzing situation...", player_id)
 
     response = await llm_client.chat(messages, temperature=0.8)
 
@@ -58,12 +67,23 @@ async def thinker_node(state: AgentState, llm_client: LLMClient) -> dict:
         action_content = parsed.get("action_content", "")
         expression = parsed.get("expression", "neutral")
     except (json.JSONDecodeError, IndexError):
-        logger.warning("Failed to parse thinker JSON output, using raw response")
+        logger.warning("[%s] Thinker: failed to parse JSON, using raw response", player_id)
         analysis = response
         available = state.get("available_actions", [])
         action_type = available[0] if available else "speak"
 
-    logger.info("Thinker completed: action_type=%s", action_type)
+    # Log the full thinking process
+    analysis_str = json.dumps(analysis, ensure_ascii=False) if isinstance(analysis, dict) else str(analysis)
+    strategy_str = json.dumps(strategy, ensure_ascii=False) if isinstance(strategy, dict) else str(strategy)
+    logger.info("[%s] Thinker — situation_analysis: %s", player_id, analysis_str[:200])
+    logger.info("[%s] Thinker — strategy: %s", player_id, strategy_str[:200])
+    if action_type == "speak":
+        logger.info("[%s] Thinker → action=speak, content='%s'",
+                     player_id, str(action_content)[:100])
+    elif action_type == "vote":
+        logger.info("[%s] Thinker → action=vote, target=%s", player_id, action_content)
+    else:
+        logger.info("[%s] Thinker → action=%s", player_id, action_type)
 
     return {
         "situation_analysis": analysis,

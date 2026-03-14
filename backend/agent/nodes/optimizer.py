@@ -16,9 +16,11 @@ async def optimizer_node(state: AgentState, llm_client: LLMClient) -> dict:
     """Polish the action content using game-specific optimization prompt."""
     action_type = state.get("final_action_type", "")
 
+    player_id = state.get("player_id", "?")
+
     # Skip optimization for vote actions
     if action_type == "vote":
-        logger.info("Optimizer: skipping for vote action")
+        logger.info("[%s] Optimizer: skipping (vote action)", player_id)
         return {
             "optimized_content": json.dumps(state.get("final_action_payload", {}), ensure_ascii=False),
         }
@@ -58,7 +60,8 @@ async def optimizer_node(state: AgentState, llm_client: LLMClient) -> dict:
     if action_type == "speak":
         updated_payload["content"] = optimized
 
-    logger.info("Optimizer completed: expression=%s", expression)
+    logger.info("[%s] Optimizer → content='%s', expression=%s",
+                 player_id, str(optimized)[:60], expression)
 
     return {
         "optimized_content": optimized,

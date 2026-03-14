@@ -33,7 +33,7 @@ class AppSettings(BaseSettings):
     output_dir: str = "output"
     llm: LLMDefaults = Field(default_factory=LLMDefaults)
 
-    model_config = {"env_prefix": "MASQUERADE_", "env_nested_delimiter": "__"}
+    model_config = {"env_prefix": "MASQUERADE_", "env_nested_delimiter": "__", "env_file": ".env"}
 
 
 class PlayerConfig(BaseModel):
@@ -60,12 +60,28 @@ def load_yaml(path: Path | str) -> dict:
         raise ConfigError("Failed to parse YAML %s: %s" % (p, e)) from e
 
 
+def _strip_empty(data: dict) -> dict:
+    """Recursively remove empty-string values so env vars are not overridden."""
+    cleaned = {}
+    for k, v in data.items():
+        if isinstance(v, dict):
+            nested = _strip_empty(v)
+            if nested:
+                cleaned[k] = nested
+        elif v != "":
+            cleaned[k] = v
+    return cleaned
+
+
 def load_app_settings(path: str = "config/app_config.yaml") -> AppSettings:
-    """Load application settings from YAML, with .env and env var overrides."""
+    """Load application settings from YAML, with .env and env var overrides.
+
+    Empty strings in YAML are stripped so that .env / env vars take precedence.
+    """
     config_path = Path(path)
     if config_path.exists():
         data = load_yaml(config_path)
-        return AppSettings(**data)
+        return AppSettings(**_strip_empty(data))
     return AppSettings()
 
 

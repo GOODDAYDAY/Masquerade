@@ -75,15 +75,15 @@ class GameRunner:
         )
         player_infos = []
         for pc in player_configs:
-            private = engine.get_private_info(pc.name)
+            role_info = engine.get_role_info(pc.name)
             player_infos.append(PlayerInfo(
                 id=pc.name,
                 name=pc.name,
                 model=pc.model,
                 persona=pc.persona,
                 appearance=pc.appearance,
-                role=private.get("role", ""),
-                word=private.get("word", ""),
+                role=role_info.get("role", ""),
+                word=role_info.get("word", ""),
             ))
         recorder = GameRecorder(game_info, player_infos)
 
@@ -98,6 +98,7 @@ class GameRunner:
             recorder.start_round(current_round)
             self.event_bus.emit("round_start", {"round": current_round})
             round_count += 1
+            logger.info("========== Round %d ==========", current_round)
 
             while engine.get_current_player() is not None and not engine.is_ended():
                 current_player = engine.get_current_player()
@@ -108,29 +109,49 @@ class GameRunner:
                 if not available:
                     break
 
+                phase = engine.get_public_state().get("phase", "")
+                logger.info("[%s] %s's turn (available: %s)", phase, current_player, available)
+
                 agent_response = await self._agent_turn(
                     engine, agents[current_player], current_player, strategy
                 )
+
+                # Log the action content for visibility
+                action = agent_response.action
+                if action.type == "speak":
+                    logger.info("[%s] %s says: %s", phase, current_player, action.payload.get("content", ""))
+                elif action.type == "vote":
+                    logger.info("[%s] %s votes for: %s", phase, current_player, action.payload.get("target_player_id", ""))
 
                 event = self._build_event(
                     current_player, agent_response, agents[current_player], engine
                 )
                 recorder.record_event(event)
 
-                summary = self._format_public_summary(current_player, agent_response.action)
-                for agent in agents.values():
-                    agent.update_public_memory(summary)
+                # Broadcast public info — but NOT individual votes (secret ballot)
+                if action.type != "vote":
+                    summary = self._format_public_summary(current_player, agent_response.action)
+                    for agent in agents.values():
+                        agent.update_public_memory(summary)
 
                 self.event_bus.emit("player_action", {
                     "player_id": current_player,
                     "action": agent_response.action.model_dump(),
                 })
 
-            # Record vote result
+            # Record vote result and broadcast to all agents (public info)
             public_state = engine.get_public_state()
             vote_result = self._extract_vote_result(public_state)
             if vote_result:
                 recorder.record_vote_result(vote_result)
+                if vote_result.eliminated:
+                    vote_summary = "投票结果: %s 被淘汰" % vote_result.eliminated
+                    logger.info(">>> %s was eliminated!", vote_result.eliminated)
+                else:
+                    vote_summary = "投票结果: 平票，无人淘汰"
+                    logger.info(">>> Tie vote — no one eliminated")
+                for agent in agents.values():
+                    agent.update_public_memory(vote_summary)
 
         # 6. Game end
         result = engine.get_result()
@@ -145,46 +166,36 @@ class GameRunner:
 
         # 7. Save and return
         script = recorder.export()
-        recorder.save(self.app_settings.scripts_dir)
-        logger.info(
-            "Game completed: winner=%s, rounds=%d",
-            result.winner if result else "unknown", round_count,
-        )
+        script_path = recorder.save(self.app_settings.scripts_dir)
+        logger.info("========== Game Over ==========")
+        if result:
+            logger.info("Winner: %s | Rounds: %d | Eliminated: %s",
+                        result.winner, result.total_rounds, ", ".join(result.eliminated_order))
+        logger.info("Script saved: %s", script_path)
         return script
 
     async def _agent_turn(self, engine, agent: PlayerAgent, player_id: str, strategy) -> AgentResponse:
-        """Execute a single agent turn."""
+        """Execute a single agent turn.
+
+        The agent's internal LangGraph handles validation and retries.
+        Runner simply passes context in and applies the result.
+        """
         public_state = engine.get_public_state()
         private_info = engine.get_private_info(player_id)
         available_actions = engine.get_available_actions(player_id)
         rules_prompt = engine.get_game_rules_prompt()
         tools_schema = engine.get_tools_schema()
 
-        try:
-            response = await agent.think_and_act(
-                game_rules_prompt=rules_prompt,
-                public_state=public_state,
-                private_info=private_info,
-                available_actions=available_actions,
-                tools_schema=tools_schema,
-                strategy=strategy,
-            )
-        except Exception as e:
-            logger.exception("Agent %s failed: %s", player_id, e)
-            action_type = available_actions[0] if available_actions else "speak"
-            payload = {"content": "..."} if action_type == "speak" else {"target_player_id": ""}
-            response = AgentResponse(
-                thinking="[Error] Agent failed: %s" % str(e),
-                action=Action(type=action_type, player_id=player_id, payload=payload),
-                expression="neutral",
-                thinking_duration_ms=0,
-            )
+        response = await agent.think_and_act(
+            game_rules_prompt=rules_prompt,
+            public_state=public_state,
+            private_info=private_info,
+            available_actions=available_actions,
+            tools_schema=tools_schema,
+            strategy=strategy,
+        )
 
-        try:
-            engine.apply_action(player_id, response.action)
-        except Exception as e:
-            logger.exception("Engine rejected action from %s: %s", player_id, e)
-
+        engine.apply_action(player_id, response.action)
         return response
 
     def _build_event(

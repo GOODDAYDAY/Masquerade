@@ -94,6 +94,16 @@ class SpyGame(GameEngine):
         }
 
     def get_private_info(self, player_id: str) -> dict:
+        """Info visible to the player — only their word, NOT their role."""
+        ps = self.players.get(player_id)
+        if not ps:
+            return {}
+        return {
+            "word": ps.word,
+        }
+
+    def get_role_info(self, player_id: str) -> dict:
+        """God-view info for recording — includes role. NOT for agents."""
         ps = self.players.get(player_id)
         if not ps:
             return {}

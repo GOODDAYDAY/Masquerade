@@ -312,7 +312,7 @@ async def scenario_civilian_wins() -> list[str]:
     # Detect who is the spy
     spy_id = None
     for pid in player_ids:
-        info = engine.get_private_info(pid)
+        info = engine.get_role_info(pid)
         if info["role"] == "spy":
             spy_id = pid
             break
@@ -351,10 +351,10 @@ async def scenario_civilian_wins() -> list[str]:
     game_info = GameInfo(type="spy", config=config, created_at=datetime.now())
     player_infos = []
     for pid in player_ids:
-        private = engine.get_private_info(pid)
+        role_info = engine.get_role_info(pid)
         player_infos.append(PlayerInfo(
             id=pid, name=pid, model="mock-model",
-            persona="Test player", role=private["role"], word=private["word"],
+            persona="Test player", role=role_info["role"], word=role_info["word"],
         ))
     recorder = GameRecorder(game_info, player_infos)
 
@@ -422,7 +422,7 @@ async def scenario_spy_wins() -> list[str]:
     spy_id = None
     civilian_ids = []
     for pid in player_ids:
-        info = engine.get_private_info(pid)
+        info = engine.get_role_info(pid)
         if info["role"] == "spy":
             spy_id = pid
         else:
@@ -480,10 +480,10 @@ async def scenario_spy_wins() -> list[str]:
     game_info = GameInfo(type="spy", config=config, created_at=datetime.now())
     player_infos = []
     for pid in player_ids:
-        private = engine.get_private_info(pid)
+        role_info = engine.get_role_info(pid)
         player_infos.append(PlayerInfo(
             id=pid, name=pid, model="mock-model",
-            persona="Test player", role=private["role"], word=private["word"],
+            persona="Test player", role=role_info["role"], word=role_info["word"],
         ))
     recorder = GameRecorder(game_info, player_infos)
 

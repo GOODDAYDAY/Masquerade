@@ -11,6 +11,7 @@ class AgentState(TypedDict, total=False):
     """
 
     # --- Input context (set by PlayerAgent) ---
+    player_id: str
     game_rules_prompt: str
     public_state: dict
     private_info: dict
@@ -42,4 +43,3 @@ class AgentState(TypedDict, total=False):
     # --- Final output ---
     final_action_type: str
     final_action_payload: dict
-    full_thinking: str
