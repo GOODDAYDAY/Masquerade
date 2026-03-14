@@ -30,6 +30,8 @@ class GamePhase(str, Enum):
 class SpyGame(GameEngine):
     """State machine implementation of Who Is The Spy."""
 
+    _MAX_CONSECUTIVE_TIES = 3
+
     def __init__(self) -> None:
         self.phase: GamePhase = GamePhase.WAITING
         self.players: dict[str, PlayerState] = {}
@@ -41,6 +43,8 @@ class SpyGame(GameEngine):
         self.votes: dict[str, str] = {}
         self.speeches: dict[int, list[dict]] = {}  # round -> [{player_id, content}]
         self.eliminated_order: list[str] = []
+        self.vote_history: dict[int, dict[str, str]] = {}  # round -> {voter: target}
+        self.consecutive_ties: int = 0
 
     def setup(self, players: list[str], config: dict) -> None:
         if len(players) < _MIN_PLAYERS:
@@ -90,6 +94,7 @@ class SpyGame(GameEngine):
             "alive_players": alive,
             "eliminated_players": self.eliminated_order,
             "speeches": self.speeches,
+            "vote_history": self.vote_history,
             "current_player": self.get_current_player(),
         }
 
@@ -276,6 +281,9 @@ class SpyGame(GameEngine):
 
     def _resolve_votes(self) -> ActionResult:
         """Count votes, eliminate the top-voted player or handle ties."""
+        # Record vote history (public information)
+        self.vote_history[self.round_number] = dict(self.votes)
+
         vote_counts: dict[str, int] = {}
         for target in self.votes.values():
             vote_counts[target] = vote_counts.get(target, 0) + 1
@@ -287,6 +295,7 @@ class SpyGame(GameEngine):
             eliminated = top_voted[0]
             self.players[eliminated].alive = False
             self.eliminated_order.append(eliminated)
+            self.consecutive_ties = 0
             logger.info(
                 "Round %d: %s eliminated with %d votes",
                 self.round_number, eliminated, max_votes,
@@ -298,14 +307,17 @@ class SpyGame(GameEngine):
             }
         else:
             eliminated = None
-            logger.info("Round %d: tie vote, no elimination", self.round_number)
+            self.consecutive_ties += 1
+            logger.info("Round %d: tie vote (%d consecutive), no elimination",
+                        self.round_number, self.consecutive_ties)
             result_info = {
                 "vote_counts": vote_counts,
                 "votes_detail": dict(self.votes),
                 "eliminated": None,
+                "consecutive_ties": self.consecutive_ties,
             }
 
-        # Check win condition
+        # Check win condition (includes consecutive tie rule)
         if self._check_win_condition():
             self.phase = GamePhase.ENDED
             logger.info("Game ended after round %d", self.round_number)
@@ -333,5 +345,10 @@ class SpyGame(GameEngine):
             return True
         # Spy survives to final 2 → spy wins
         if len(alive) <= 2:
+            return True
+        # Consecutive ties → spy wins (couldn't reach consensus)
+        if self.consecutive_ties >= self._MAX_CONSECUTIVE_TIES:
+            logger.info("Game ended: %d consecutive ties, spy wins by deadlock",
+                        self.consecutive_ties)
             return True
         return False

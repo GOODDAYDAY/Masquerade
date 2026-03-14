@@ -156,7 +156,6 @@ async def run_game(
     agents: dict[str, PlayerAgent],
     strategy,
     recorder: GameRecorder,
-    max_rounds: int = 5,
 ) -> GameScript:
     """Drive a full game. This replicates GameRunner.run() logic."""
     event_bus = EventBus()
@@ -186,9 +185,6 @@ async def run_game(
                     print("    => No elimination (tie)")
 
             tracked_round = current_round
-            if tracked_round > max_rounds:
-                print("  Max rounds reached, stopping")
-                break
             recorder.start_round(current_round)
             event_bus.emit("round_start", {"round": current_round})
             print("  Round %d — phase: %s" % (current_round, public_state["phase"]))
@@ -305,7 +301,7 @@ async def scenario_civilian_wins() -> list[str]:
 
     # Setup engine
     engine = SpyGame()
-    config = {"spy_count": 1, "max_rounds": 5}
+    config = {"spy_count": 1, }
     random.seed(42)
     engine.setup(player_ids, config)
 
@@ -359,7 +355,7 @@ async def scenario_civilian_wins() -> list[str]:
     recorder = GameRecorder(game_info, player_infos)
 
     # Run game
-    script = await run_game(engine, agents, strategy, recorder, max_rounds=5)
+    script = await run_game(engine, agents, strategy, recorder)
 
     # Verify results
     if not engine.is_ended():
@@ -414,7 +410,7 @@ async def scenario_spy_wins() -> list[str]:
 
     # Setup engine
     engine = SpyGame()
-    config = {"spy_count": 1, "max_rounds": 5}
+    config = {"spy_count": 1, }
     random.seed(42)
     engine.setup(player_ids, config)
 
@@ -488,7 +484,7 @@ async def scenario_spy_wins() -> list[str]:
     recorder = GameRecorder(game_info, player_infos)
 
     # Run game
-    script = await run_game(engine, agents, strategy, recorder, max_rounds=5)
+    script = await run_game(engine, agents, strategy, recorder)
 
     # Verify results
     if not engine.is_ended():

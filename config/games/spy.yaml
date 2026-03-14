@@ -2,7 +2,6 @@
 # This file is entirely game-specific. The spy engine validates all fields.
 
 spy_count: 1
-max_rounds: 10
 
 # Optional: custom word pairs (if omitted, uses built-in default word pairs)
 # word_pairs:

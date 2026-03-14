@@ -89,10 +89,9 @@ class GameRunner:
 
         # 5. Game loop
         self.event_bus.emit("game_start")
-        max_rounds = self.game_config.get("max_rounds", 20)
         round_count = 0
 
-        while not engine.is_ended() and round_count < max_rounds:
+        while not engine.is_ended():
             public_state = engine.get_public_state()
             current_round = public_state.get("round_number", round_count + 1)
             recorder.start_round(current_round)
@@ -144,12 +143,27 @@ class GameRunner:
             vote_result = self._extract_vote_result(public_state)
             if vote_result:
                 recorder.record_vote_result(vote_result)
+
+                # Build detailed vote summary (who voted for whom is public)
+                vote_history = public_state.get("vote_history", {})
+                current_round_votes = vote_history.get(
+                    max(vote_history.keys()), {}
+                ) if vote_history else {}
+
+                vote_lines = []
+                for voter, target in current_round_votes.items():
+                    vote_lines.append("%s → %s" % (voter, target))
+
                 if vote_result.eliminated:
-                    vote_summary = "投票结果: %s 被淘汰" % vote_result.eliminated
-                    logger.info(">>> %s was eliminated!", vote_result.eliminated)
+                    vote_summary = "投票详情: %s\n结果: %s 被淘汰" % (
+                        ", ".join(vote_lines), vote_result.eliminated)
+                    logger.info(">>> Votes: %s => %s eliminated!",
+                                ", ".join(vote_lines), vote_result.eliminated)
                 else:
-                    vote_summary = "投票结果: 平票，无人淘汰"
-                    logger.info(">>> Tie vote — no one eliminated")
+                    vote_summary = "投票详情: %s\n结果: 平票，无人淘汰" % ", ".join(vote_lines)
+                    logger.info(">>> Votes: %s => Tie, no elimination",
+                                ", ".join(vote_lines))
+
                 for agent in agents.values():
                     agent.update_public_memory(vote_summary)
 
