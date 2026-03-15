@@ -79,7 +79,9 @@ WOLF_NIGHT_OPTIMIZER = """你是「狼人杀」游戏的动作润色专家。
 2. 如果是击杀（wolf_kill）：直接返回目标玩家ID。
 3. 语气要符合角色人设。
 
-返回 JSON 格式：{{"optimized_content": "...", "expression": "..."}}
+返回 JSON 格式：{{"optimized_content": "...", "expression": "...", "strategy_tip": "..."}}
+
+strategy_tip 要求：一句简短的内心独白，描述你当前的策略意图。
 
 表情选项：neutral, thinking, surprised, smile, angry
 """
@@ -151,7 +153,9 @@ WOLF_DAY_OPTIMIZER = """你是「狼人杀」游戏的发言润色专家。
 3. 如果是遗言（last_words）：简短有力，可以适当暴露信息。
 4. 语气要符合角色人设。
 
-返回 JSON 格式：{{"optimized_content": "...", "expression": "..."}}
+返回 JSON 格式：{{"optimized_content": "...", "expression": "...", "strategy_tip": "..."}}
+
+strategy_tip 要求：一句简短的内心独白，描述你当前的策略意图。
 
 表情选项：neutral, thinking, surprised, smile, angry
 """
@@ -213,7 +217,9 @@ SEER_NIGHT_OPTIMIZER = """你是「狼人杀」游戏的动作润色专家。
 
 要求：直接返回目标玩家ID。
 
-返回 JSON 格式：{{"optimized_content": "...", "expression": "..."}}
+返回 JSON 格式：{{"optimized_content": "...", "expression": "...", "strategy_tip": "..."}}
+
+strategy_tip 要求：一句简短的内心独白，描述你当前的策略意图。
 """
 
 # =============================================================================
@@ -275,7 +281,9 @@ SEER_DAY_OPTIMIZER = """你是「狼人杀」发言润色专家。
 2. 投票（vote）：返回目标玩家ID。
 3. 遗言（last_words）：可以公布关键信息。
 
-返回 JSON 格式：{{"optimized_content": "...", "expression": "..."}}
+返回 JSON 格式：{{"optimized_content": "...", "expression": "...", "strategy_tip": "..."}}
+
+strategy_tip 要求：一句简短的内心独白，描述你当前的策略意图。
 """
 
 # =============================================================================
@@ -332,7 +340,7 @@ WITCH_NIGHT_OPTIMIZER = """你是「狼人杀」动作润色专家。
 操作类型：{{action_type}}
 
 要求：返回用药决策。
-- 格式：{{"optimized_content": "antidote" 或 "poison:目标ID" 或 "skip", "expression": "..."}}
+- 格式：{{"optimized_content": "antidote" 或 "poison:目标ID" 或 "skip", "expression": "...", "strategy_tip": "..."}}
 """
 
 # =============================================================================
@@ -388,7 +396,9 @@ GUARD_NIGHT_OPTIMIZER = """你是「狼人杀」动作润色专家。
 
 要求：直接返回目标玩家ID。
 
-返回 JSON 格式：{{"optimized_content": "...", "expression": "..."}}
+返回 JSON 格式：{{"optimized_content": "...", "expression": "...", "strategy_tip": "..."}}
+
+strategy_tip 要求：一句简短的内心独白，描述你当前的策略意图。
 """
 
 # =============================================================================
@@ -451,7 +461,9 @@ VILLAGER_DAY_OPTIMIZER = """你是「狼人杀」发言润色专家。
 2. 投票（vote）：返回目标玩家ID。
 3. 遗言（last_words）：简短。
 
-返回 JSON 格式：{{"optimized_content": "...", "expression": "..."}}
+返回 JSON 格式：{{"optimized_content": "...", "expression": "...", "strategy_tip": "..."}}
+
+strategy_tip 要求：一句简短的内心独白，描述你当前的策略意图。
 """
 
 # =============================================================================
@@ -517,7 +529,9 @@ HUNTER_DAY_OPTIMIZER = """你是「狼人杀」发言润色专家。
 3. 开枪（hunter_shoot）：返回目标玩家ID 或 "skip"。
 4. 遗言（last_words）：可以公布身份和推理。
 
-返回 JSON 格式：{{"optimized_content": "...", "expression": "..."}}
+返回 JSON 格式：{{"optimized_content": "...", "expression": "...", "strategy_tip": "..."}}
+
+strategy_tip 要求：一句简短的内心独白，描述你当前的策略意图。
 """
 
 # =============================================================================

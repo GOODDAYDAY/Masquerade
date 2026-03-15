@@ -1,0 +1,32 @@
+@startuml
+title REQ-007 Strategy Tip Data Flow
+
+participant "Thinker Node" as T
+participant "Evaluator Node" as E
+participant "Optimizer Node" as O
+participant "PlayerAgent" as PA
+participant "GameRunner" as GR
+participant "GameRecorder" as REC
+participant "Frontend\nSpeakingScene" as FE
+
+T -> E: strategy (raw text)
+E -> O: pass (score >= threshold)
+
+O -> O: LLM call with updated prompt\n(now requests strategy_tip)
+O -> O: Parse JSON response:\n{optimized_content, expression, strategy_tip}
+O --> PA: AgentState with strategy_tip
+
+PA -> PA: Extract strategy_tip\nfrom graph result
+PA --> GR: AgentResponse\n{thinking, action, strategy_tip}
+
+GR -> GR: _build_event()\nwrites strategy_tip to GameEvent
+GR -> REC: record_event(event)
+REC -> REC: Save to JSON\n(strategy_tip in each event)
+
+FE -> FE: Load JSON\nRead event.strategy_tip
+alt strategy_tip is not empty
+  FE -> FE: Render inner monologue bubble\n(italic, translucent, typewriter)
+end
+FE -> FE: Render speech bubble\n(normal style, with TTS)
+
+@enduml

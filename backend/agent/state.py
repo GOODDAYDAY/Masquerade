@@ -39,6 +39,7 @@ class AgentState(TypedDict, total=False):
     # --- Optimizer output ---
     optimized_content: str
     expression: str
+    strategy_tip: str
 
     # --- Final output ---
     final_action_type: str

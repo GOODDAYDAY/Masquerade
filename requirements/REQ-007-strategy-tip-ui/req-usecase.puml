@@ -1,0 +1,25 @@
+@startuml
+title REQ-007 Use Case - Strategy Tip & UI Polish
+
+actor "Frontend User" as user
+
+rectangle "Game Replay Theater" {
+  usecase "Watch Speaking Scene" as UC1
+  usecase "See Strategy Tip\n(inner monologue)" as UC2
+  usecase "See Speech Bubble\n(actual speech)" as UC3
+  usecase "See Improved Avatar\nLayout" as UC4
+}
+
+rectangle "Backend Pipeline" {
+  usecase "Optimizer generates\nstrategy_tip" as UC5
+  usecase "Record strategy_tip\nin GameEvent" as UC6
+}
+
+user --> UC1
+UC1 ..> UC2 : <<include>>
+UC1 ..> UC3 : <<include>>
+UC1 ..> UC4 : <<include>>
+UC5 ..> UC6 : <<include>>
+UC6 ..> UC2 : provides data
+
+@enduml

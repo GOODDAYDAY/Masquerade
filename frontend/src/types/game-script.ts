@@ -40,6 +40,7 @@ export interface GameEvent {
   thinking: string;
   expression: string;
   action: Action;
+  strategy_tip?: string;
   memory_snapshot: MemorySnapshot;
 }
 

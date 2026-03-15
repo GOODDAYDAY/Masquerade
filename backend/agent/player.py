@@ -121,6 +121,7 @@ class PlayerAgent:
             action=action,
             expression=result.get("expression", "neutral"),
             thinking_duration_ms=elapsed_ms,
+            strategy_tip=result.get("strategy_tip", ""),
         )
 
     def update_public_memory(self, event_summary: str) -> None:

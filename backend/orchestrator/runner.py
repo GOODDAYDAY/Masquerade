@@ -229,6 +229,7 @@ class GameRunner:
             thinking=response.thinking,
             expression=response.expression,
             action=response.action,
+            strategy_tip=response.strategy_tip,
             memory_snapshot=MemorySnapshot(
                 private=list(agent.memory.private_memory[-3:]),
                 public=list(agent.memory.public_memory[-5:]),

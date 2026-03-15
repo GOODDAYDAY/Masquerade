@@ -18,11 +18,13 @@ async def optimizer_node(state: AgentState, llm_client: LLMClient) -> dict:
 
     player_id = state.get("player_id", "?")
 
-    # Skip optimization for vote actions
+    # Skip optimization for vote actions — derive strategy_tip from thinker's strategy
     if action_type == "vote":
-        logger.info("[%s] Optimizer: skipping (vote action)", player_id)
+        strategy_tip = _extract_short_tip(state.get("strategy", ""))
+        logger.info("[%s] Optimizer: skipping LLM (vote action), tip='%s'", player_id, strategy_tip[:40])
         return {
             "optimized_content": json.dumps(state.get("final_action_payload", {}), ensure_ascii=False),
+            "strategy_tip": strategy_tip,
         }
 
     payload = state.get("final_action_payload", {})
@@ -52,8 +54,10 @@ async def optimizer_node(state: AgentState, llm_client: LLMClient) -> dict:
         parsed = json.loads(json_str.strip())
         optimized = parsed.get("optimized_content", raw_content)
         expression = parsed.get("expression", expression)
+        strategy_tip = parsed.get("strategy_tip", "")
     except (json.JSONDecodeError, IndexError):
         logger.warning("Failed to parse optimizer JSON, using original content")
+        strategy_tip = _extract_short_tip(state.get("strategy", ""))
 
     # Update the action payload with optimized content
     updated_payload = dict(state.get("final_action_payload", {}))
@@ -63,8 +67,27 @@ async def optimizer_node(state: AgentState, llm_client: LLMClient) -> dict:
     logger.info("[%s] Optimizer → content='%s', expression=%s",
                  player_id, str(optimized)[:60], expression)
 
+    logger.info("[%s] Optimizer → strategy_tip='%s'", player_id, strategy_tip[:40] if strategy_tip else "")
+
     return {
         "optimized_content": optimized,
         "expression": expression,
         "final_action_payload": updated_payload,
+        "strategy_tip": strategy_tip,
     }
+
+
+def _extract_short_tip(strategy_text: str) -> str:
+    """Extract a short tip from the thinker's raw strategy text (fallback)."""
+    if not strategy_text:
+        return ""
+    # If it's JSON, try to extract a string value
+    if isinstance(strategy_text, dict):
+        strategy_text = str(strategy_text)
+    # Take first sentence, max 50 chars
+    text = strategy_text.strip()
+    for sep in ("。", "，", "\n", ". ", ", "):
+        if sep in text:
+            text = text[:text.index(sep)]
+            break
+    return text[:50]

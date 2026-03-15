@@ -12,3 +12,4 @@ class AgentResponse(BaseModel):
     action: Action
     expression: str = "neutral"
     thinking_duration_ms: int = 0
+    strategy_tip: str = ""

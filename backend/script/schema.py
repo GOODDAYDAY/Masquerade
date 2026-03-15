@@ -28,6 +28,7 @@ class GameEvent(BaseModel):
     thinking: str = ""
     expression: str = "neutral"
     action: Action
+    strategy_tip: str = ""
     memory_snapshot: MemorySnapshot = Field(default_factory=MemorySnapshot)
 
 
