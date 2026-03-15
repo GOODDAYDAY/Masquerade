@@ -58,8 +58,11 @@ class GameRunner:
         player_ids = [pc.name for pc in player_configs]
         engine.setup(player_ids, self.game_config)
 
-        # 2. Get game-specific agent strategy
+        # 2. Get game-specific agent strategies
         strategy = engine.get_agent_strategy()
+        # Blank players use a separate strategy in mixed mode
+        from backend.engine.spy.strategy import get_blank_strategy
+        blank_strategy = get_blank_strategy() if self.game_config.get("blank_count", 0) > 0 else None
 
         # 3. Create agents
         agents: dict[str, PlayerAgent] = {}
@@ -119,8 +122,12 @@ class GameRunner:
                 phase = engine.get_public_state().get("phase", "")
                 logger.info("[%s] %s's turn (available: %s)", phase, current_player, available)
 
+                # Select strategy: blank players use blank_strategy in mixed mode
+                private_info = engine.get_private_info(current_player)
+                active_strategy = blank_strategy if private_info.get("is_blank") and blank_strategy else strategy
+
                 agent_response = await self._agent_turn(
-                    engine, agents[current_player], current_player, strategy
+                    engine, agents[current_player], current_player, active_strategy
                 )
 
                 # Log the action content for visibility

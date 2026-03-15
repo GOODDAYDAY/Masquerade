@@ -9,8 +9,8 @@ from backend.engine.base import GameEngine
 from backend.engine.models import Action, ActionResult, GameResult, PlayerState
 from backend.engine.registry import register_game
 from backend.agent.strategy import AgentStrategy
-from backend.engine.spy.prompts import RULES_PROMPT
-from backend.engine.spy.strategy import get_spy_strategy
+from backend.engine.spy.prompts import get_rules_prompt
+from backend.engine.spy.strategy import get_spy_strategy, get_blank_strategy
 from backend.engine.spy.words import DEFAULT_WORD_PAIRS
 
 logger = get_logger("engine.spy")
@@ -39,6 +39,7 @@ class SpyGame(GameEngine):
         self.current_player_idx: int = 0
         self.round_number: int = 0
         self.spy_count: int = 1
+        self.blank_count: int = 0
         self.word_pair: tuple[str, str] = ("", "")
         self.votes: dict[str, str] = {}
         self.speeches: dict[int, list[dict]] = {}  # round -> [{player_id, content}]
@@ -52,36 +53,48 @@ class SpyGame(GameEngine):
                 "Spy game requires at least %d players, got %d" % (_MIN_PLAYERS, len(players))
             )
 
-        self.spy_count = config.get("spy_count", 1)
-        if self.spy_count >= len(players):
-            raise IllegalActionError("Spy count must be less than player count")
+        self.player_order = list(players)
+        self.spy_count = config.get("spy_count", 0)
+        self.blank_count = config.get("blank_count", 0)
+        total_special = self.spy_count + self.blank_count
 
-        # Pick a random word pair
+        if total_special > len(players):
+            raise IllegalActionError(
+                "spy_count(%d) + blank_count(%d) exceeds player count(%d)"
+                % (self.spy_count, self.blank_count, len(players))
+            )
+
+        # Pick a random word pair (used by civilians and spies)
         word_pairs = config.get("word_pairs", DEFAULT_WORD_PAIRS)
         civilian_word, spy_word = random.choice(word_pairs)
         self.word_pair = (civilian_word, spy_word)
 
-        # Assign roles randomly
-        spy_indices = set(random.sample(range(len(players)), self.spy_count))
-        self.player_order = list(players)
+        # Assign roles randomly: spy, then blank, rest civilian
+        special_indices = random.sample(range(len(players)), total_special) if total_special > 0 else []
+        spy_indices = set(special_indices[:self.spy_count])
+        blank_indices = set(special_indices[self.spy_count:])
+
         for i, pid in enumerate(players):
-            is_spy = i in spy_indices
+            if i in spy_indices:
+                role, word = "spy", spy_word
+            elif i in blank_indices:
+                role, word = "blank", ""
+            else:
+                role, word = "civilian", civilian_word
             self.players[pid] = PlayerState(
-                player_id=pid,
-                alive=True,
-                role="spy" if is_spy else "civilian",
-                word=spy_word if is_spy else civilian_word,
+                player_id=pid, alive=True, role=role, word=word,
             )
+
+        logger.info(
+            "Game setup: %d players, %d spies, %d blanks, words=(%s/%s)",
+            len(players), self.spy_count, self.blank_count,
+            civilian_word, spy_word,
+        )
 
         self.round_number = 1
         self.current_player_idx = 0
         self.phase = GamePhase.SPEAKING
         self.speeches[self.round_number] = []
-
-        logger.info(
-            "Game setup: %d players, %d spies, words=(%s/%s)",
-            len(players), self.spy_count, civilian_word, spy_word,
-        )
 
     def get_player_ids(self) -> list[str]:
         return list(self.player_order)
@@ -103,9 +116,9 @@ class SpyGame(GameEngine):
         ps = self.players.get(player_id)
         if not ps:
             return {}
-        return {
-            "word": ps.word,
-        }
+        if ps.role == "blank":
+            return {"word": "", "is_blank": True}
+        return {"word": ps.word}
 
     def get_role_info(self, player_id: str) -> dict:
         """God-view info for recording — includes role. NOT for agents."""
@@ -160,10 +173,20 @@ class SpyGame(GameEngine):
         if not self.is_ended():
             return None
 
-        alive_spies = [
-            pid for pid, ps in self.players.items() if ps.alive and ps.role == "spy"
-        ]
-        winner = "spy" if alive_spies else "civilian"
+        alive = [pid for pid in self.player_order if self.players[pid].alive]
+        alive_spies = [pid for pid in alive if self.players[pid].role == "spy"]
+        alive_blanks = [pid for pid in alive if self.players[pid].role == "blank"]
+
+        if not alive_spies and not alive_blanks:
+            winner = "civilian"
+        else:
+            winners = []
+            if alive_spies:
+                winners.append("spy")
+            if alive_blanks:
+                winners.append("blank")
+            winner = ",".join(winners)
+
         return GameResult(
             winner=winner,
             eliminated_order=self.eliminated_order,
@@ -171,7 +194,7 @@ class SpyGame(GameEngine):
         )
 
     def get_game_rules_prompt(self) -> str:
-        return RULES_PROMPT
+        return get_rules_prompt("standard", self.blank_count > 0)
 
     def get_tools_schema(self) -> list[dict]:
         if self.phase == GamePhase.SPEAKING:
@@ -339,16 +362,17 @@ class SpyGame(GameEngine):
         """Return True if the game should end."""
         alive = [pid for pid in self.player_order if self.players[pid].alive]
         alive_spies = [pid for pid in alive if self.players[pid].role == "spy"]
+        alive_blanks = [pid for pid in alive if self.players[pid].role == "blank"]
 
-        # All spies eliminated → civilians win
-        if not alive_spies:
+        # All non-civilian roles eliminated → civilians win
+        if not alive_spies and not alive_blanks:
             return True
-        # Spy survives to final 2 → spy wins
+        # Down to final 2 → non-civilian roles win
         if len(alive) <= 2:
             return True
-        # Consecutive ties → spy wins (couldn't reach consensus)
+        # Consecutive ties → non-civilian roles win
         if self.consecutive_ties >= self._MAX_CONSECUTIVE_TIES:
-            logger.info("Game ended: %d consecutive ties, spy wins by deadlock",
+            logger.info("Game ended: %d consecutive ties, non-civilian roles win by deadlock",
                         self.consecutive_ties)
             return True
         return False

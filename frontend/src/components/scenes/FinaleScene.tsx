@@ -13,8 +13,19 @@ interface FinaleSceneProps {
   onComplete?: () => void;
 }
 
+function getWinnerDisplay(winner: string, players: PlayerInfo[]): { text: string; colorClass: string } {
+  if (winner === "civilian") return { text: "平民阵营获胜", colorClass: "text-theater-accent" };
+  if (winner === "spy") return { text: "卧底获胜", colorClass: "text-theater-danger" };
+  if (winner === "blank") return { text: "白板获胜", colorClass: "text-gray-300" };
+  if (winner === "spy,blank") return { text: "非平民阵营获胜", colorClass: "text-theater-danger" };
+  // All-blank or other composite: winner is comma-separated player IDs
+  const winnerIds = winner.split(",");
+  const names = winnerIds.map((id) => players.find((p) => p.id === id)?.name ?? id);
+  return { text: `存活者获胜：${names.join("、")}`, colorClass: "text-gray-300" };
+}
+
 export default function FinaleScene({ result, players, onComplete }: FinaleSceneProps) {
-  const isCivilianWin = result.winner === "civilian";
+  const winnerInfo = getWinnerDisplay(result.winner, players);
   const firedRef = useRef(false);
 
   const durationSec = Math.round(result.total_duration_ms / 1000);
@@ -42,7 +53,7 @@ export default function FinaleScene({ result, players, onComplete }: FinaleScene
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8, duration: 0.5 }}>
         {players.map((p) => (
           <motion.div key={p.id}
-            animate={p.role === "spy" ? { scale: [1, 1.12, 1], transition: { repeat: 2, duration: 0.4 } } : {}}>
+            animate={(p.role === "spy" || p.role === "blank") ? { scale: [1, 1.12, 1], transition: { repeat: 2, duration: 0.4 } } : {}}>
             <PlayerAvatar name={p.name} playerId={p.id} size={52}
               eliminated={result.eliminated_order.includes(p.id)}
               word={p.word} role={p.role} />
@@ -51,10 +62,10 @@ export default function FinaleScene({ result, players, onComplete }: FinaleScene
       </motion.div>
 
       {/* Winner */}
-      <motion.p className={`text-3xl font-bold mb-6 ${isCivilianWin ? "text-theater-accent" : "text-theater-danger"}`}
+      <motion.p className={`text-3xl font-bold mb-6 ${winnerInfo.colorClass}`}
         initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 1.8, duration: 0.5 }}>
-        {isCivilianWin ? "平民阵营获胜" : "卧底获胜"}
+        {winnerInfo.text}
       </motion.p>
 
       {/* Stats */}

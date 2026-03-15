@@ -93,6 +93,8 @@ export default function Theater({ script, gameId }: TheaterProps) {
     return ids;
   }, [currentIndex, timeline]);
 
+  const isAllBlank = script.players.every((p) => p.role === "blank");
+  const hasBlank = script.players.some((p) => p.role === "blank");
   const civilianWord = script.players.find((p) => p.role === "civilian")?.word ?? "";
   const spyWord = script.players.find((p) => p.role === "spy")?.word ?? "";
 
@@ -106,15 +108,30 @@ export default function Theater({ script, gameId }: TheaterProps) {
     <TheaterContext.Provider value={contextValue}>
       <div className="h-screen w-screen flex flex-col bg-theater-bg overflow-hidden">
         <div className="shrink-0 bg-theater-surface/80 border-b border-theater-border px-4 py-2 flex items-center justify-center gap-6 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">平民词</span>
-            <span className="font-bold text-theater-accent">{civilianWord}</span>
-          </div>
-          <span className="text-gray-700">|</span>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">卧底词</span>
-            <span className="font-bold text-theater-danger">{spyWord}</span>
-          </div>
+          {isAllBlank ? (
+            <span className="text-gray-400 font-bold">全员白板模式（无词）</span>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">平民词</span>
+                <span className="font-bold text-theater-accent">{civilianWord}</span>
+              </div>
+              <span className="text-gray-700">|</span>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">卧底词</span>
+                <span className="font-bold text-theater-danger">{spyWord}</span>
+              </div>
+              {hasBlank && (
+                <>
+                  <span className="text-gray-700">|</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">白板</span>
+                    <span className="font-bold text-gray-400">无词</span>
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
 
         <main className="flex-1 min-h-0 overflow-y-auto">

@@ -36,6 +36,7 @@ export default function PlayerAvatar({
   const color = AVATAR_COLORS[hashCode(playerId) % AVATAR_COLORS.length]!;
   const initial = name.charAt(0);
   const isSpy = role === "spy";
+  const isBlank = role === "blank";
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -64,15 +65,24 @@ export default function PlayerAvatar({
             卧底
           </span>
         )}
+        {isBlank && !dimmed && (
+          <span className="absolute -top-1 -right-1 bg-gray-500 text-white text-[8px] font-bold px-1 rounded-full leading-tight">
+            白板
+          </span>
+        )}
       </motion.div>
       {/* Name */}
       <span className={`text-xs ${dimmed ? "text-gray-600" : "text-gray-300"} ${eliminated ? "line-through text-gray-600" : ""}`}>
         {name}
       </span>
       {/* Word label */}
-      {word && !dimmed && (
-        <span className={`text-[10px] px-1.5 py-0.5 rounded ${isSpy ? "bg-theater-danger/15 text-theater-danger" : "bg-theater-accent/15 text-theater-accent"}`}>
-          {word}
+      {!dimmed && (
+        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+          isSpy ? "bg-theater-danger/15 text-theater-danger"
+          : isBlank ? "bg-gray-500/15 text-gray-400"
+          : "bg-theater-accent/15 text-theater-accent"
+        }`}>
+          {word || "无词"}
         </span>
       )}
     </div>
