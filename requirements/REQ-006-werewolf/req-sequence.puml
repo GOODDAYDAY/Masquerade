@@ -1,0 +1,92 @@
+@startuml
+title Werewolf Game - One Full Round Sequence
+
+participant Runner as R
+participant WerewolfEngine as E
+participant "Guard Agent" as GA
+participant "Wolf Agent 1" as W1
+participant "Wolf Agent 2" as W2
+participant "Witch Agent" as WA
+participant "Seer Agent" as SA
+participant "Villager Agents" as VA
+participant Recorder as REC
+
+== Night Phase: Guard ==
+R -> E: get_current_player()
+E --> R: guard_id
+R -> GA: think_and_act()\n[action description only]
+GA --> R: {type: "protect", target: "player_x"}
+R -> E: apply_action("guard", protect)
+R -> REC: record_event()
+
+== Night Phase: Wolf Discussion (Round 1) ==
+R -> E: get_current_player()
+E --> R: wolf_1
+R -> W1: think_and_act()\n[gesture/action only]
+W1 --> R: {type: "wolf_discuss", gesture: "points at player_y"}
+R -> E: apply_action("wolf_1", wolf_discuss)
+R -> REC: record_event()
+
+R -> E: get_current_player()
+E --> R: wolf_2
+R -> W2: think_and_act()\n[gesture/action only]
+W2 --> R: {type: "wolf_discuss", gesture: "nods and draws line across throat"}
+R -> E: apply_action("wolf_2", wolf_discuss)
+R -> REC: record_event()
+
+== Night Phase: Wolf Discussion (Round 2) + Kill ==
+R -> E: get_current_player()
+E --> R: wolf_1
+R -> W1: think_and_act()
+W1 --> R: {type: "wolf_discuss", gesture: "thumbs up"}
+R -> E: apply_action("wolf_1", wolf_discuss)
+
+R -> E: get_current_player()
+E --> R: wolf_2
+R -> W2: think_and_act()
+W2 --> R: {type: "wolf_kill", target: "player_y"}
+R -> E: apply_action("wolf_2", wolf_kill)
+
+== Night Phase: Witch ==
+R -> E: get_current_player()
+E --> R: witch_id
+R -> WA: think_and_act()\n[private_info: killed=player_y]
+WA --> R: {type: "witch_action", use: "antidote"}
+R -> E: apply_action("witch", witch_action)
+
+== Night Phase: Seer ==
+R -> E: get_current_player()
+E --> R: seer_id
+R -> SA: think_and_act()
+SA --> R: {type: "seer_check", target: "wolf_2"}
+R -> E: apply_action("seer", seer_check)
+note right: Engine returns faction\nvia ActionResult
+
+== Night Resolution ==
+R -> E: get_public_state()
+note over E: Calculate all night results\nGuard + Wolf + Witch + Seer
+
+== Day Phase: Discussion ==
+loop each alive player
+  R -> E: get_current_player()
+  E --> R: player_id
+  R -> VA: think_and_act()\n[normal speech]
+  VA --> R: {type: "speak", content: "I think..."}
+  R -> E: apply_action(player_id, speak)
+  R -> REC: record_event()
+end
+
+== Day Phase: Voting ==
+loop each alive player
+  R -> E: get_current_player()
+  E --> R: player_id
+  R -> VA: think_and_act()
+  VA --> R: {type: "vote", target: "suspect_id"}
+  R -> E: apply_action(player_id, vote)
+  R -> REC: record_event()
+end
+
+R -> E: is_ended()
+E --> R: false (continue)
+
+@enduml

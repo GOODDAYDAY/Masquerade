@@ -98,7 +98,7 @@ async def scenario_e_blank_eliminated() -> list[str]:
             agent_responses[pid].extend(build_vote_responses(spy_id))
 
     agents = {pid: create_mock_agent(pid, agent_responses[pid]) for pid in player_ids}
-    strategy = engine.get_agent_strategy()
+    strategy = engine.get_agent_strategy(player_ids[0])
     recorder = _create_recorder(engine, player_ids, config)
 
     script = await run_game(engine, agents, strategy, recorder)
@@ -162,7 +162,7 @@ async def scenario_f_blank_survives() -> list[str]:
             agent_responses[pid].extend(build_vote_responses(target_r2))
 
     agents = {pid: create_mock_agent(pid, agent_responses[pid]) for pid in player_ids}
-    strategy = engine.get_agent_strategy()
+    strategy = engine.get_agent_strategy(player_ids[0])
     recorder = _create_recorder(engine, player_ids, config)
 
     script = await run_game(engine, agents, strategy, recorder)
@@ -223,7 +223,7 @@ async def scenario_g_all_blank() -> list[str]:
     agent_responses["p4"].extend(build_vote_responses("p2"))
 
     agents = {pid: create_mock_agent(pid, agent_responses[pid]) for pid in player_ids}
-    strategy = engine.get_agent_strategy()
+    strategy = engine.get_agent_strategy(player_ids[0])
     recorder = _create_recorder(engine, player_ids, config)
 
     script = await run_game(engine, agents, strategy, recorder)
@@ -292,7 +292,7 @@ async def scenario_h_six_player_mixed() -> list[str]:
             agent_responses[pid].extend(build_vote_responses(spy_id))
 
     agents = {pid: create_mock_agent(pid, agent_responses[pid]) for pid in player_ids}
-    strategy = engine.get_agent_strategy()
+    strategy = engine.get_agent_strategy(player_ids[0])
     recorder = _create_recorder(engine, player_ids, config)
 
     script = await run_game(engine, agents, strategy, recorder)

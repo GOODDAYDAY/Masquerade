@@ -239,8 +239,66 @@ class SpyGame(GameEngine):
             ]
         return []
 
-    def get_agent_strategy(self) -> AgentStrategy:
+    def get_agent_strategy(self, player_id: str) -> AgentStrategy:
+        ps = self.players.get(player_id)
+        if ps and ps.role == "blank":
+            return get_blank_strategy()
         return get_spy_strategy()
+
+    def format_action_log(self, player_id: str, action: Action) -> str:
+        if action.type == "speak":
+            return "[%s] %s says: %s" % (self.phase.value, player_id, action.payload.get("content", ""))
+        if action.type == "vote":
+            return "[%s] %s votes for: %s" % (self.phase.value, player_id, action.payload.get("target_player_id", ""))
+        return "%s: %s" % (player_id, action.type)
+
+    def get_broadcast_targets(self, player_id: str, action: Action) -> list[str] | None:
+        if action.type == "vote":
+            return []  # secret ballot
+        return None  # broadcast to all
+
+    def format_public_summary(self, player_id: str, action: Action) -> str:
+        if action.type == "speak":
+            return "%s 说: %s" % (player_id, action.payload.get("content", ""))
+        return "%s 执行了 %s" % (player_id, action.type)
+
+    def get_round_end_summary(self, round_number: int) -> str | None:
+        votes = self.vote_history.get(round_number, {})
+        if not votes:
+            return None
+        vote_lines = ["%s \u2192 %s" % (voter, target) for voter, target in votes.items()]
+        # Find who was eliminated this round
+        eliminated = self._get_eliminated_in_round(round_number)
+        if eliminated:
+            return "\u6295\u7968\u8be6\u60c5: %s\n\u7ed3\u679c: %s \u88ab\u6dd8\u6c70" % (
+                ", ".join(vote_lines), eliminated)
+        return "\u6295\u7968\u8be6\u60c5: %s\n\u7ed3\u679c: \u5e73\u7968\uff0c\u65e0\u4eba\u6dd8\u6c70" % ", ".join(vote_lines)
+
+    def get_vote_result(self, round_number: int) -> dict | None:
+        votes = self.vote_history.get(round_number, {})
+        if not votes:
+            return None
+        eliminated = self._get_eliminated_in_round(round_number)
+        return {"votes": votes, "eliminated": eliminated}
+
+    def _get_eliminated_in_round(self, round_number: int) -> str | None:
+        """Find who was eliminated in a specific round by checking elimination order."""
+        # Count eliminations up to this round vs previous rounds
+        rounds_before = [r for r in sorted(self.vote_history.keys()) if r < round_number]
+        elim_before = 0
+        for r in rounds_before:
+            v = self.vote_history[r]
+            counts: dict[str, int] = {}
+            for t in v.values():
+                counts[t] = counts.get(t, 0) + 1
+            if counts:
+                max_c = max(counts.values())
+                top = [p for p, c in counts.items() if c == max_c]
+                if len(top) == 1:
+                    elim_before += 1
+        if elim_before < len(self.eliminated_order):
+            return self.eliminated_order[elim_before]
+        return None
 
     # --- Internal handlers ---
 

@@ -62,5 +62,37 @@ class GameEngine(ABC):
         """Return tool definitions for the current game phase."""
 
     @abstractmethod
-    def get_agent_strategy(self) -> AgentStrategy:
-        """Return game-specific agent strategy (prompt templates for decision nodes)."""
+    def get_agent_strategy(self, player_id: str) -> AgentStrategy:
+        """Return game-specific agent strategy for the given player.
+
+        May vary by role — e.g. werewolf vs villager get different prompts.
+        """
+
+    # --- Optional overrides with default implementations ---
+
+    def format_action_log(self, player_id: str, action: Action) -> str:
+        """Format an action for console logging. Override for game-specific formatting."""
+        return "%s: %s" % (player_id, action.type)
+
+    def get_broadcast_targets(self, player_id: str, action: Action) -> list[str] | None:
+        """Which players should receive this action's public summary.
+
+        Returns None = all players, [] = nobody, [ids] = specific players.
+        """
+        return None
+
+    def format_public_summary(self, player_id: str, action: Action) -> str:
+        """Format an action as a text summary for broadcasting to players' memory."""
+        return "%s performed %s" % (player_id, action.type)
+
+    def get_round_end_summary(self, round_number: int) -> str | None:
+        """Return text summary to broadcast at end of round (e.g. vote results)."""
+        return None
+
+    def get_vote_result(self, round_number: int) -> dict | None:
+        """Return vote result data for script recording.
+
+        Expected format: {"votes": {voter: target}, "eliminated": str|None}.
+        Returns None if no vote occurred this round.
+        """
+        return None

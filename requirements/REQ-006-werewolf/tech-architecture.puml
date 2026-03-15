@@ -1,0 +1,93 @@
+@startuml
+title REQ-006 Architecture Overview - Impact Map
+
+skinparam componentStyle rectangle
+
+package "backend/engine/" {
+  component "base.py\n(GameEngine ABC)" as base #LightGreen {
+  }
+  note right of base
+    MODIFIED:
+    - get_agent_strategy(player_id)
+    + format_action_log()
+    + get_broadcast_targets()
+    + format_public_summary()
+    + get_round_end_summary()
+    + get_vote_result()
+  end note
+
+  component "registry.py" as reg #White
+  component "models.py" as models #White
+
+  package "spy/" #LightYellow {
+    component "game.py\n(SpyGame)" as spy_game
+    component "strategy.py" as spy_strat
+    component "prompts.py" as spy_prompts
+    note bottom of spy_game
+      ADAPTED:
+      get_agent_strategy(player_id)
+      + override 5 new methods
+    end note
+  }
+
+  package "werewolf/" #LightBlue {
+    component "game.py\n(WerewolfGame)" as ww_game
+    component "strategy.py" as ww_strat
+    component "prompts.py" as ww_prompts
+    note bottom of ww_game : NEW MODULE
+  }
+}
+
+package "backend/orchestrator/" {
+  component "runner.py\n(GameRunner)" as runner #LightGreen
+  note bottom of runner
+    REFACTORED:
+    - Remove spy imports
+    - Use engine interface methods
+  end note
+}
+
+package "backend/agent/ (UNCHANGED)" #White {
+  component "player.py" as agent
+  component "strategy.py\n(AgentStrategy)" as agent_strat
+}
+
+package "backend/script/ (UNCHANGED)" #White {
+  component "recorder.py" as recorder
+  component "schema.py" as schema
+}
+
+package "config/games/" {
+  component "spy.yaml" as spy_cfg #White
+  component "werewolf.yaml" as ww_cfg #LightBlue
+  note bottom of ww_cfg : NEW FILE
+}
+
+' Relationships
+spy_game --|> base : extends
+ww_game --|> base : extends
+spy_game ..> reg : "@register_game"
+ww_game ..> reg : "@register_game"
+
+runner ..> reg : get_game_engine()
+runner ..> base : uses interface
+runner ..> agent : creates & drives
+runner ..> recorder : records events
+
+spy_game ..> spy_strat : get_agent_strategy()
+spy_game ..> spy_prompts : get_game_rules_prompt()
+ww_game ..> ww_strat : get_agent_strategy()
+ww_game ..> ww_prompts : get_game_rules_prompt()
+
+agent ..> agent_strat : receives strategy
+
+' Legend
+legend right
+  |= Color |= Meaning |
+  | <#LightGreen> | Modified |
+  | <#LightBlue> | New |
+  | <#LightYellow> | Adapted (minor) |
+  | <#White> | Unchanged |
+end legend
+
+@enduml

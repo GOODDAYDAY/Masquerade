@@ -238,7 +238,7 @@ async def scenario_a_civilian_wins() -> list[str]:
         agent_responses[pid] = responses
 
     agents = {pid: create_mock_agent(pid, agent_responses[pid]) for pid in player_ids}
-    strategy = engine.get_agent_strategy()
+    strategy = engine.get_agent_strategy(player_ids[0])
     recorder = _create_recorder(engine, player_ids, config)
 
     script = await run_game(engine, agents, strategy, recorder)
@@ -303,7 +303,7 @@ async def scenario_b_spy_wins() -> list[str]:
             agent_responses[pid].extend(build_vote_responses(target_r2))
 
     agents = {pid: create_mock_agent(pid, agent_responses[pid]) for pid in player_ids}
-    strategy = engine.get_agent_strategy()
+    strategy = engine.get_agent_strategy(player_ids[0])
     recorder = _create_recorder(engine, player_ids, config)
 
     script = await run_game(engine, agents, strategy, recorder)
@@ -365,7 +365,7 @@ async def scenario_c_tie_game() -> list[str]:
                 agent_responses[pid].extend(build_vote_responses(spy_id))
 
     agents = {pid: create_mock_agent(pid, agent_responses[pid]) for pid in player_ids}
-    strategy = engine.get_agent_strategy()
+    strategy = engine.get_agent_strategy(player_ids[0])
     recorder = _create_recorder(engine, player_ids, config)
 
     script = await run_game(engine, agents, strategy, recorder)

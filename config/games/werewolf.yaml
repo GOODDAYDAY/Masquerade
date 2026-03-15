@@ -1,0 +1,37 @@
+# Werewolf (狼人杀) game configuration
+# Total roles must equal total players
+
+# Role counts
+werewolf_count: 2
+villager_count: 2
+seer: true
+witch: true
+hunter: true
+guard: true
+
+# Players (8 total = 2 wolves + 2 villagers + 4 special roles)
+players:
+  - name: "张三"
+    persona: "沉稳老练的退休教师，说话有条有理"
+    appearance: "花白头发，戴着老花镜，穿着深色中山装"
+  - name: "李四"
+    persona: "活泼开朗的大学生，思维敏捷但有时冲动"
+    appearance: "短发，穿着卫衣和运动裤"
+  - name: "王五"
+    persona: "精明的商人，善于察言观色"
+    appearance: "西装革履，手戴名表"
+  - name: "赵六"
+    persona: "温柔的护士，细心体贴但不善争辩"
+    appearance: "扎着马尾，穿着白色衬衫"
+  - name: "孙七"
+    persona: "幽默的程序员，喜欢用逻辑分析问题"
+    appearance: "戴着黑框眼镜，格子衫"
+  - name: "周八"
+    persona: "直率的退伍军人，说话干脆利落"
+    appearance: "短寸头，身材壮硕"
+  - name: "吴九"
+    persona: "神秘的占卜师，说话含糊暗示多"
+    appearance: "披肩长发，戴着各种手串"
+  - name: "郑十"
+    persona: "热心的社区大妈，喜欢八卦但心地善良"
+    appearance: "烫着卷发，穿着花裙子"

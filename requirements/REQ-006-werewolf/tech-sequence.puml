@@ -1,0 +1,68 @@
+@startuml
+title REQ-006 Refactored Runner - Generic Game Loop
+
+participant "GameRunner" as R
+participant "GameEngine\n(any game)" as E
+participant "PlayerAgent" as A
+participant "GameRecorder" as REC
+
+R -> E: setup(player_ids, config)
+R -> E: get_role_info(pid) [for each player]
+R -> REC: new GameRecorder(game_info, player_infos)
+
+== Main Loop ==
+
+loop while not engine.is_ended()
+  R -> E: get_public_state()
+  note right: Extract round_number
+  R -> REC: start_round(current_round)
+
+  loop while get_current_player() != None
+    R -> E: get_current_player()
+    R -> E: get_public_state()
+    note right: Break if round changed
+
+    R -> E: get_agent_strategy(player_id)
+    note right #LightGreen: NEW: player-specific strategy\n(replaces hardcoded blank check)
+
+    R -> A: think_and_act(rules, state, strategy)
+    A --> R: AgentResponse
+
+    R -> E: apply_action(player_id, action)
+
+    R -> E: format_action_log(player_id, action)
+    note right #LightGreen: NEW: engine formats log\n(replaces hardcoded speak/vote log)
+
+    R -> REC: record_event(event)
+
+    R -> E: get_broadcast_targets(player_id, action)
+    note right #LightGreen: NEW: engine decides who sees action\n(replaces hardcoded vote filter)
+
+    alt targets is not None and not empty
+      R -> E: format_public_summary(player_id, action)
+      note right #LightGreen: NEW: engine formats summary\n(replaces _format_public_summary)
+      R -> A: update_public_memory(summary)\n[for each target player]
+    end
+  end
+
+  == Round End ==
+
+  R -> E: get_vote_result(current_round)
+  note right #LightGreen: NEW: engine provides vote data\n(replaces manual vote extraction)
+  alt vote_data exists
+    R -> REC: record_vote_result(vote_data)
+  end
+
+  R -> E: get_round_end_summary(current_round)
+  note right #LightGreen: NEW: engine provides round summary\n(replaces hardcoded vote broadcast)
+  alt summary exists
+    R -> A: update_public_memory(summary)\n[for all agents]
+  end
+end
+
+== Game End ==
+R -> E: get_result()
+R -> REC: set_result(result)
+R -> REC: save(output_dir)
+
+@enduml

@@ -1,0 +1,119 @@
+@startuml
+title REQ-006 Class Diagram - Engine Hierarchy
+
+abstract class GameEngine {
+  {abstract} +setup(players: list[str], config: dict)
+  {abstract} +get_player_ids(): list[str]
+  {abstract} +get_public_state(): dict
+  {abstract} +get_private_info(player_id: str): dict
+  {abstract} +get_role_info(player_id: str): dict
+  {abstract} +get_available_actions(player_id: str): list[str]
+  {abstract} +apply_action(player_id: str, action: Action): ActionResult
+  {abstract} +get_current_player(): str | None
+  {abstract} +is_ended(): bool
+  {abstract} +get_result(): GameResult | None
+  {abstract} +get_game_rules_prompt(): str
+  {abstract} +get_tools_schema(): list[dict]
+  {abstract} +get_agent_strategy(player_id: str): AgentStrategy
+  --
+  +format_action_log(player_id, action): str
+  +get_broadcast_targets(player_id, action): list[str] | None
+  +format_public_summary(player_id, action): str
+  +get_round_end_summary(round_number): str | None
+  +get_vote_result(round_number): dict | None
+}
+
+note right of GameEngine
+  Abstract methods (top):
+    must be implemented
+  Default methods (bottom):
+    override as needed
+end note
+
+class SpyGame {
+  -phase: GamePhase
+  -players: dict[str, PlayerState]
+  -player_order: list[str]
+  -round_number: int
+  -spy_count: int
+  -blank_count: int
+  -word_pair: tuple[str, str]
+  -votes: dict[str, str]
+  -vote_history: dict
+  --
+  +get_agent_strategy(player_id): AgentStrategy
+  +format_action_log(player_id, action): str
+  +get_broadcast_targets(player_id, action): list | None
+  +format_public_summary(player_id, action): str
+  +get_round_end_summary(round_number): str | None
+  +get_vote_result(round_number): dict | None
+  -_handle_speak()
+  -_handle_vote()
+  -_resolve_votes()
+  -_check_win_condition()
+}
+
+class WerewolfGame {
+  -phase: WerewolfPhase
+  -players: dict[str, PlayerState]
+  -player_order: list[str]
+  -round_number: int
+  -wolf_ids: list[str]
+  -seer_id: str | None
+  -witch_id: str | None
+  -hunter_id: str | None
+  -guard_id: str | None
+  --
+  -witch_antidote_used: bool
+  -witch_poison_used: bool
+  -guard_last_protected: str | None
+  -seer_results: dict[str, str]
+  --
+  -night_guard_target: str | None
+  -night_wolf_target: str | None
+  -night_witch_save: bool
+  -night_witch_poison_target: str | None
+  -wolf_discuss_round: int
+  -wolf_discussions: list[dict]
+  --
+  +get_agent_strategy(player_id): AgentStrategy
+  +format_action_log(player_id, action): str
+  +get_broadcast_targets(player_id, action): list | None
+  +format_public_summary(player_id, action): str
+  +get_round_end_summary(round_number): str | None
+  +get_vote_result(round_number): dict | None
+  -_handle_protect()
+  -_handle_wolf_discuss()
+  -_handle_wolf_kill()
+  -_handle_witch_action()
+  -_handle_seer_check()
+  -_handle_speak()
+  -_handle_vote()
+  -_handle_last_words()
+  -_handle_hunter_shoot()
+  -_resolve_night()
+  -_resolve_votes()
+  -_check_win_condition()
+  -_advance_to_next_phase()
+}
+
+enum WerewolfPhase {
+  WAITING
+  NIGHT_GUARD
+  NIGHT_WOLF_DISCUSS
+  NIGHT_WOLF_KILL
+  NIGHT_WITCH
+  NIGHT_SEER
+  DAY_ANNOUNCE
+  DAY_LAST_WORDS
+  DAY_HUNTER
+  DAY_DISCUSSION
+  DAY_VOTING
+  ENDED
+}
+
+GameEngine <|-- SpyGame
+GameEngine <|-- WerewolfGame
+WerewolfGame *-- WerewolfPhase
+
+@enduml

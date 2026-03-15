@@ -2,6 +2,8 @@
 
 The runner is game-agnostic. It receives a game type name and a raw config dict.
 The engine parses its own config. The runner only needs player IDs to create agents.
+All game-specific logic (strategy selection, action logging, broadcast rules,
+round summaries) is delegated to the engine via its interface methods.
 """
 
 from datetime import datetime
@@ -14,7 +16,7 @@ from backend.core.config import (
     resolve_player_llm,
 )
 from backend.core.logging import get_logger
-from backend.engine.models import Action
+from backend.engine.base import GameEngine
 from backend.engine.registry import get_game_engine
 from backend.orchestrator.event_bus import EventBus
 from backend.script.recorder import GameRecorder
@@ -53,23 +55,16 @@ class GameRunner:
         engine_cls = get_game_engine(self.game_type)
         engine = engine_cls()
 
-        # Extract player configs for agent creation, pass remaining config to engine
         player_configs = self._build_player_configs()
         player_ids = [pc.name for pc in player_configs]
         engine.setup(player_ids, self.game_config)
 
-        # 2. Get game-specific agent strategies
-        strategy = engine.get_agent_strategy()
-        # Blank players use a separate strategy in mixed mode
-        from backend.engine.spy.strategy import get_blank_strategy
-        blank_strategy = get_blank_strategy() if self.game_config.get("blank_count", 0) > 0 else None
-
-        # 3. Create agents
+        # 2. Create agents
         agents: dict[str, PlayerAgent] = {}
         for pc in player_configs:
             agents[pc.name] = PlayerAgent(player_id=pc.name, config=pc)
 
-        # 4. Create recorder
+        # 3. Create recorder
         game_info = GameInfo(
             type=self.game_type,
             config=self.game_config,
@@ -89,7 +84,7 @@ class GameRunner:
             ))
         recorder = GameRecorder(game_info, player_infos)
 
-        # 5. Game loop
+        # 4. Game loop — fully engine-driven
         self.event_bus.emit("game_start")
         round_count = 0
 
@@ -100,9 +95,6 @@ class GameRunner:
             self.event_bus.emit("round_start", {"round": current_round})
             round_count += 1
             logger.info("========== Round %d ==========", current_round)
-
-            # Snapshot eliminated count before this round's actions
-            eliminated_before = len(public_state.get("eliminated_players", []))
 
             while engine.get_current_player() is not None and not engine.is_ended():
                 # Break out when engine advances to the next round
@@ -118,70 +110,50 @@ class GameRunner:
                 if not available:
                     break
 
-                # Capture phase BEFORE action — engine may transition phase during apply_action
+                # Capture phase BEFORE action — engine may transition during apply_action
                 phase = engine.get_public_state().get("phase", "")
                 logger.info("[%s] %s's turn (available: %s)", phase, current_player, available)
 
-                # Select strategy: blank players use blank_strategy in mixed mode
-                private_info = engine.get_private_info(current_player)
-                active_strategy = blank_strategy if private_info.get("is_blank") and blank_strategy else strategy
+                # Strategy from engine — role-aware, no game-specific logic here
+                strategy = engine.get_agent_strategy(current_player)
 
                 agent_response = await self._agent_turn(
-                    engine, agents[current_player], current_player, active_strategy
+                    engine, agents[current_player], current_player, strategy
                 )
 
-                # Log the action content for visibility
-                action = agent_response.action
-                if action.type == "speak":
-                    logger.info("[%s] %s says: %s", phase, current_player, action.payload.get("content", ""))
-                elif action.type == "vote":
-                    logger.info("[%s] %s votes for: %s", phase, current_player, action.payload.get("target_player_id", ""))
+                # Log via engine — game-specific formatting
+                log_msg = engine.format_action_log(current_player, agent_response.action)
+                logger.info(log_msg)
 
                 event = self._build_event(
                     current_player, agent_response, agents[current_player], phase
                 )
                 recorder.record_event(event)
 
-                # Broadcast public info — but NOT individual votes (secret ballot)
-                if action.type != "vote":
-                    summary = self._format_public_summary(current_player, agent_response.action)
-                    for agent in agents.values():
-                        agent.update_public_memory(summary)
+                # Broadcast via engine — engine decides who sees what
+                self._broadcast_action(engine, agents, current_player, agent_response.action)
 
                 self.event_bus.emit("player_action", {
                     "player_id": current_player,
                     "action": agent_response.action.model_dump(),
                 })
 
-            # Record vote result using vote_history and eliminated diff
-            public_state = engine.get_public_state()
-            vote_history = public_state.get("vote_history", {})
-            current_votes = vote_history.get(current_round, {})
+            # Round-end: record vote result if engine provides one
+            vote_data = engine.get_vote_result(current_round)
+            if vote_data:
+                recorder.record_vote_result(VoteResult(
+                    votes=vote_data.get("votes", {}),
+                    eliminated=vote_data.get("eliminated"),
+                ))
 
-            eliminated_after = public_state.get("eliminated_players", [])
-            new_eliminated = eliminated_after[eliminated_before:] if len(eliminated_after) > eliminated_before else []
-            last_eliminated = new_eliminated[-1] if new_eliminated else None
+            # Round-end: broadcast summary from engine
+            round_summary = engine.get_round_end_summary(current_round)
+            if round_summary:
+                logger.info(">>> Round %d summary: %s", current_round, round_summary)
+                for agent in agents.values():
+                    agent.update_public_memory(round_summary)
 
-            vote_result = VoteResult(votes=current_votes, eliminated=last_eliminated)
-            recorder.record_vote_result(vote_result)
-
-            # Build detailed vote summary and broadcast (public info)
-            vote_lines = ["%s → %s" % (voter, target) for voter, target in current_votes.items()]
-
-            if last_eliminated:
-                vote_summary = "投票详情: %s\n结果: %s 被淘汰" % (
-                    ", ".join(vote_lines), last_eliminated)
-                logger.info(">>> Votes: %s => %s eliminated!",
-                            ", ".join(vote_lines), last_eliminated)
-            else:
-                vote_summary = "投票详情: %s\n结果: 平票，无人淘汰" % ", ".join(vote_lines)
-                logger.info(">>> Votes: %s => Tie, no elimination",
-                            ", ".join(vote_lines))
-
-            for agent in agents.values():
-                agent.update_public_memory(vote_summary)
-
-        # 6. Game end
+        # 5. Game end
         result = engine.get_result()
         if result:
             recorder.set_result(GameResult(
@@ -192,7 +164,7 @@ class GameRunner:
 
         self.event_bus.emit("game_end", {"result": result})
 
-        # 7. Save and return
+        # 6. Save and return
         script = recorder.export()
         script_path = recorder.save(self.app_settings.scripts_dir)
         logger.info("========== Game Over ==========")
@@ -201,17 +173,15 @@ class GameRunner:
                         result.winner, result.total_rounds, ", ".join(result.eliminated_order))
         logger.info("Script saved: %s", script_path)
 
-        # 8. Generate TTS audio
+        # 7. Generate TTS audio
         await self._generate_tts(script_path)
 
         return script
 
-    async def _agent_turn(self, engine, agent: PlayerAgent, player_id: str, strategy) -> AgentResponse:
-        """Execute a single agent turn.
-
-        The agent's internal LangGraph handles validation and retries.
-        Runner simply passes context in and applies the result.
-        """
+    async def _agent_turn(
+        self, engine: GameEngine, agent: PlayerAgent, player_id: str, strategy,
+    ) -> AgentResponse:
+        """Execute a single agent turn."""
         public_state = engine.get_public_state()
         private_info = engine.get_private_info(player_id)
         available_actions = engine.get_available_actions(player_id)
@@ -230,6 +200,25 @@ class GameRunner:
         engine.apply_action(player_id, response.action)
         return response
 
+    def _broadcast_action(
+        self, engine: GameEngine, agents: dict[str, PlayerAgent],
+        player_id: str, action,
+    ) -> None:
+        """Broadcast action summary to appropriate players per engine rules."""
+        targets = engine.get_broadcast_targets(player_id, action)
+        if targets is None:
+            target_ids = list(agents.keys())
+        else:
+            target_ids = targets
+
+        if not target_ids:
+            return
+
+        summary = engine.format_public_summary(player_id, action)
+        for pid in target_ids:
+            if pid in agents:
+                agents[pid].update_public_memory(summary)
+
     def _build_event(
         self, player_id: str, response: AgentResponse, agent: PlayerAgent, phase: str,
     ) -> GameEvent:
@@ -245,13 +234,6 @@ class GameRunner:
                 public=list(agent.memory.public_memory[-5:]),
             ),
         )
-
-    def _format_public_summary(self, player_id: str, action: Action) -> str:
-        if action.type == "speak":
-            return "%s 说: %s" % (player_id, action.payload.get("content", ""))
-        if action.type == "vote":
-            return "%s 投票给了 %s" % (player_id, action.payload.get("target_player_id", ""))
-        return "%s 执行了 %s" % (player_id, action.type)
 
     async def _generate_tts(self, script_path: str) -> None:
         """Generate TTS audio for the game script. Skips if edge-tts not installed."""

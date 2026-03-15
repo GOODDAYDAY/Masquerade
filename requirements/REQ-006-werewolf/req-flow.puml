@@ -1,0 +1,70 @@
+@startuml
+title Werewolf Game - Flow Chart
+
+start
+:Setup game\n(assign roles from config);
+
+repeat
+  :=== NIGHT PHASE ===;
+
+  :Guard selects protection target\n(action description, no speech);
+  note right: Cannot protect same\nplayer two nights in a row
+
+  :Wolves 2-round gesture discussion\n(action descriptions only,\nvisible to wolves only);
+  :Wolves submit kill target;
+
+  :Witch sees killed player\n(if any);
+  if (Witch has antidote\nand wants to save?) then (yes)
+    :Use antidote\n(action description);
+  else (no)
+    if (Witch has poison\nand wants to use?) then (yes)
+      :Use poison on target\n(action description);
+    endif
+  endif
+
+  :Seer checks one player\n(action description);
+  :Reveal faction to Seer\n(Villager or Werewolf);
+
+  :=== NIGHT RESOLUTION ===;
+  :Calculate deaths\n(wolf kill - guard protect\n+ witch poison - witch save);
+
+  if (Win condition met?) then (yes)
+    :Announce winner;
+    stop
+  endif
+
+  :=== DAY PHASE ===;
+  :Announce night deaths\n(no cause revealed);
+
+  if (Hunter died at night?) then (yes)
+    :Hunter may shoot\none alive player;
+    if (Win condition met?) then (yes)
+      :Announce winner;
+      stop
+    endif
+  endif
+
+  :Last words from\neliminated players;
+
+  :All alive players\ndiscuss in turn\n(normal speech);
+
+  :All alive players vote;
+
+  if (Tie?) then (yes)
+    :No one exiled;
+  else (no)
+    :Exile top-voted player;
+    if (Exiled is Hunter?) then (yes)
+      :Hunter may shoot\none alive player;
+    endif
+  endif
+
+  if (Win condition met?) then (yes)
+    :Announce winner;
+    stop
+  endif
+
+repeat while (Game continues)
+
+stop
+@enduml

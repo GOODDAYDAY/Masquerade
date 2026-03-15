@@ -1,0 +1,39 @@
+@startuml
+title Werewolf Game - Use Case Diagram
+
+actor Developer as dev
+actor "Frontend User" as user
+
+rectangle "Masquerade Platform" {
+  usecase "Start Werewolf Game\nvia CLI" as UC1
+  usecase "Configure Game\n(werewolf.yaml)" as UC2
+  usecase "Watch AI Players\nPlay Werewolf" as UC3
+  usecase "Replay Game\nvia Web Theater" as UC4
+
+  rectangle "Werewolf Engine" {
+    usecase "Night Phase:\nAction-based Communication" as UC5
+    usecase "Wolf Discussion\n(2 rounds gesture)" as UC6
+    usecase "Seer Check" as UC7
+    usecase "Witch Use Potion" as UC8
+    usecase "Guard Protect" as UC9
+    usecase "Day Phase:\nDiscussion & Vote" as UC10
+    usecase "Hunter Shoot\n(on death)" as UC11
+    usecase "Win Condition Check" as UC12
+  }
+}
+
+dev --> UC1
+dev --> UC2
+dev --> UC3
+user --> UC4
+
+UC1 ..> UC5 : <<include>>
+UC1 ..> UC10 : <<include>>
+UC5 ..> UC6 : <<include>>
+UC5 ..> UC7 : <<include>>
+UC5 ..> UC8 : <<include>>
+UC5 ..> UC9 : <<include>>
+UC10 ..> UC12 : <<include>>
+UC5 ..> UC12 : <<include>>
+UC10 ..> UC11 : <<extend>>
+@enduml

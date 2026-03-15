@@ -345,7 +345,7 @@ async def scenario_civilian_wins() -> list[str]:
 
     # Create agents with mock
     agents = {pid: create_mock_agent(pid, agent_responses[pid]) for pid in player_ids}
-    strategy = engine.get_agent_strategy()
+    strategy = engine.get_agent_strategy(player_ids[0])
 
     # Create recorder
     game_info = GameInfo(type="spy", config=config, created_at=datetime.now())
@@ -474,7 +474,7 @@ async def scenario_spy_wins() -> list[str]:
 
     # Create agents
     agents = {pid: create_mock_agent(pid, agent_responses[pid]) for pid in player_ids}
-    strategy = engine.get_agent_strategy()
+    strategy = engine.get_agent_strategy(player_ids[0])
 
     # Create recorder
     game_info = GameInfo(type="spy", config=config, created_at=datetime.now())
