@@ -77,8 +77,9 @@ export function buildSceneList(script: GameScript): Scene[] {
 
   // Rounds
   for (const round of script.rounds) {
-    const speakingEvents = round.events.filter((e) => e.phase === "speaking");
-    const votingEvents = round.events.filter((e) => e.phase === "voting");
+    // Use action.type instead of phase — phase field from engine can be inaccurate
+    const speakingEvents = round.events.filter((e) => e.action.type === "speak");
+    const votingEvents = round.events.filter((e) => e.action.type === "vote");
 
     // Speaking phase title
     if (speakingEvents.length > 0) {

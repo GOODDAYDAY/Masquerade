@@ -14,7 +14,6 @@ from backend.core.config import (
     resolve_player_llm,
 )
 from backend.core.logging import get_logger
-from backend.engine.base import GameEngine
 from backend.engine.models import Action
 from backend.engine.registry import get_game_engine
 from backend.orchestrator.event_bus import EventBus
@@ -99,7 +98,15 @@ class GameRunner:
             round_count += 1
             logger.info("========== Round %d ==========", current_round)
 
+            # Snapshot eliminated count before this round's actions
+            eliminated_before = len(public_state.get("eliminated_players", []))
+
             while engine.get_current_player() is not None and not engine.is_ended():
+                # Break out when engine advances to the next round
+                live_round = engine.get_public_state().get("round_number", current_round)
+                if live_round != current_round:
+                    break
+
                 current_player = engine.get_current_player()
                 if not current_player:
                     break
@@ -108,6 +115,7 @@ class GameRunner:
                 if not available:
                     break
 
+                # Capture phase BEFORE action — engine may transition phase during apply_action
                 phase = engine.get_public_state().get("phase", "")
                 logger.info("[%s] %s's turn (available: %s)", phase, current_player, available)
 
@@ -123,7 +131,7 @@ class GameRunner:
                     logger.info("[%s] %s votes for: %s", phase, current_player, action.payload.get("target_player_id", ""))
 
                 event = self._build_event(
-                    current_player, agent_response, agents[current_player], engine
+                    current_player, agent_response, agents[current_player], phase
                 )
                 recorder.record_event(event)
 
@@ -138,34 +146,33 @@ class GameRunner:
                     "action": agent_response.action.model_dump(),
                 })
 
-            # Record vote result and broadcast to all agents (public info)
+            # Record vote result using vote_history and eliminated diff
             public_state = engine.get_public_state()
-            vote_result = self._extract_vote_result(public_state)
-            if vote_result:
-                recorder.record_vote_result(vote_result)
+            vote_history = public_state.get("vote_history", {})
+            current_votes = vote_history.get(current_round, {})
 
-                # Build detailed vote summary (who voted for whom is public)
-                vote_history = public_state.get("vote_history", {})
-                current_round_votes = vote_history.get(
-                    max(vote_history.keys()), {}
-                ) if vote_history else {}
+            eliminated_after = public_state.get("eliminated_players", [])
+            new_eliminated = eliminated_after[eliminated_before:] if len(eliminated_after) > eliminated_before else []
+            last_eliminated = new_eliminated[-1] if new_eliminated else None
 
-                vote_lines = []
-                for voter, target in current_round_votes.items():
-                    vote_lines.append("%s → %s" % (voter, target))
+            vote_result = VoteResult(votes=current_votes, eliminated=last_eliminated)
+            recorder.record_vote_result(vote_result)
 
-                if vote_result.eliminated:
-                    vote_summary = "投票详情: %s\n结果: %s 被淘汰" % (
-                        ", ".join(vote_lines), vote_result.eliminated)
-                    logger.info(">>> Votes: %s => %s eliminated!",
-                                ", ".join(vote_lines), vote_result.eliminated)
-                else:
-                    vote_summary = "投票详情: %s\n结果: 平票，无人淘汰" % ", ".join(vote_lines)
-                    logger.info(">>> Votes: %s => Tie, no elimination",
-                                ", ".join(vote_lines))
+            # Build detailed vote summary and broadcast (public info)
+            vote_lines = ["%s → %s" % (voter, target) for voter, target in current_votes.items()]
 
-                for agent in agents.values():
-                    agent.update_public_memory(vote_summary)
+            if last_eliminated:
+                vote_summary = "投票详情: %s\n结果: %s 被淘汰" % (
+                    ", ".join(vote_lines), last_eliminated)
+                logger.info(">>> Votes: %s => %s eliminated!",
+                            ", ".join(vote_lines), last_eliminated)
+            else:
+                vote_summary = "投票详情: %s\n结果: 平票，无人淘汰" % ", ".join(vote_lines)
+                logger.info(">>> Votes: %s => Tie, no elimination",
+                            ", ".join(vote_lines))
+
+            for agent in agents.values():
+                agent.update_public_memory(vote_summary)
 
         # 6. Game end
         result = engine.get_result()
@@ -217,12 +224,11 @@ class GameRunner:
         return response
 
     def _build_event(
-        self, player_id: str, response: AgentResponse, agent: PlayerAgent, engine: GameEngine,
+        self, player_id: str, response: AgentResponse, agent: PlayerAgent, phase: str,
     ) -> GameEvent:
-        public_state = engine.get_public_state()
         return GameEvent(
             player_id=player_id,
-            phase=public_state.get("phase", "unknown"),
+            phase=phase,
             thinking_duration_ms=response.thinking_duration_ms,
             thinking=response.thinking,
             expression=response.expression,
@@ -239,11 +245,6 @@ class GameRunner:
         if action.type == "vote":
             return "%s 投票给了 %s" % (player_id, action.payload.get("target_player_id", ""))
         return "%s 执行了 %s" % (player_id, action.type)
-
-    def _extract_vote_result(self, public_state: dict) -> VoteResult | None:
-        eliminated = public_state.get("eliminated_players", [])
-        last_eliminated = eliminated[-1] if eliminated else None
-        return VoteResult(eliminated=last_eliminated)
 
     async def _generate_tts(self, script_path: str) -> None:
         """Generate TTS audio for the game script. Skips if edge-tts not installed."""

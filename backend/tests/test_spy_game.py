@@ -174,10 +174,12 @@ async def run_game(
         if current_round != tracked_round:
             # Record vote result for the previous round (if any)
             if tracked_round > 0:
+                vote_history = public_state.get("vote_history", {})
+                round_votes = vote_history.get(tracked_round, {})
                 eliminated = public_state.get("eliminated_players", [])
                 new_eliminated = eliminated[last_eliminated_count:] if len(eliminated) > last_eliminated_count else []
                 last_elim = new_eliminated[-1] if new_eliminated else None
-                recorder.record_vote_result(VoteResult(eliminated=last_elim))
+                recorder.record_vote_result(VoteResult(votes=round_votes, eliminated=last_elim))
                 last_eliminated_count = len(eliminated)
                 if last_elim:
                     print("    => %s eliminated" % last_elim)
@@ -255,10 +257,12 @@ async def run_game(
     # Record vote result for the final round
     if tracked_round > 0:
         public_state = engine.get_public_state()
+        vote_history = public_state.get("vote_history", {})
+        round_votes = vote_history.get(tracked_round, {})
         eliminated = public_state.get("eliminated_players", [])
         new_eliminated = eliminated[last_eliminated_count:] if len(eliminated) > last_eliminated_count else []
         last_elim = new_eliminated[-1] if new_eliminated else None
-        recorder.record_vote_result(VoteResult(eliminated=last_elim))
+        recorder.record_vote_result(VoteResult(votes=round_votes, eliminated=last_elim))
         if last_elim:
             print("    => %s eliminated" % last_elim)
         elif engine.is_ended():

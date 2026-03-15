@@ -19,14 +19,19 @@ function getSceneLabel(scene: Scene): string {
 
 export default function PlaybackControls() {
   const {
-    timeline, isPlaying, currentIndex, totalScenes, speed,
+    timeline, audioManager, isPlaying, currentIndex, totalScenes, speed,
     setIsPlaying, setSpeed,
   } = useTheater();
 
   const progress = totalScenes > 1 ? currentIndex / (totalScenes - 1) : 0;
-
   const handlePlayPause = () => {
-    if (isPlaying) { timeline?.pause(); } else { timeline?.play(); }
+    if (isPlaying) {
+      timeline?.pause();
+      audioManager?.pause();
+    } else {
+      timeline?.play();
+      audioManager?.resume();
+    }
     setIsPlaying(!isPlaying);
   };
 

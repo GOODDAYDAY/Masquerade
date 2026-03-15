@@ -39,7 +39,7 @@ export default function SpeakingScene({
     // Calculate wait time = max(audio duration, text duration) + buffer
     const audioDurationMs = audioManager?.getDurationMs(round, eventIndex, event.player_id) ?? 0;
     const textDurationMs = (speechContent.length / TEXT_SPEED / speed) * 1000;
-    const waitMs = Math.max(audioDurationMs, textDurationMs) + 800;
+    const waitMs = Math.max(audioDurationMs, textDurationMs) + 800 / speed;
 
     const timer = setTimeout(() => {
       if (!firedRef.current) {

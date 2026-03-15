@@ -1,5 +1,6 @@
 /**
  * Audio manager — preloads all MP3 files on init, exposes duration.
+ * Stores audio as blob URLs for reliable playback.
  */
 
 interface AudioFileEntry {
@@ -15,9 +16,8 @@ interface AudioManifest {
 }
 
 interface PreloadedAudio {
-  audio: HTMLAudioElement;
+  blobUrl: string;
   duration: number; // seconds
-  entry: AudioFileEntry;
 }
 
 function makeKey(round: number, eventIndex: number, playerId: string): string {
@@ -28,7 +28,7 @@ export class AudioManager {
   private audioMap = new Map<string, PreloadedAudio>();
   private currentAudio: HTMLAudioElement | null = null;
 
-  /** Load manifest and preload ALL audio files. Resolves when all durations are known. */
+  /** Load manifest and preload ALL audio files as blob URLs. */
   async loadAndPreload(audioDir: string): Promise<void> {
     let manifest: AudioManifest;
     try {
@@ -41,24 +41,27 @@ export class AudioManager {
 
     console.log("Preloading %d audio files...", manifest.files.length);
 
-    const promises = manifest.files.map((entry) => {
-      return new Promise<void>((resolve) => {
-        const url = `${audioDir}/${encodeURIComponent(entry.file)}`;
-        const audio = new Audio();
-        audio.preload = "auto";
-        audio.src = url;
+    const promises = manifest.files.map(async (entry) => {
+      const url = `${audioDir}/${encodeURIComponent(entry.file)}`;
+      try {
+        // Fetch as blob for reliable playback
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
 
-        audio.onloadedmetadata = () => {
-          this.audioMap.set(makeKey(entry.round, entry.event_index, entry.player_id), {
-            audio, duration: audio.duration, entry,
-          });
-          resolve();
-        };
-        audio.onerror = () => {
-          console.warn("Failed to preload: %s", entry.file);
-          resolve();
-        };
-      });
+        // Get duration
+        const duration = await new Promise<number>((resolve) => {
+          const audio = new Audio(blobUrl);
+          audio.onloadedmetadata = () => resolve(audio.duration);
+          audio.onerror = () => resolve(0);
+        });
+
+        const key = makeKey(entry.round, entry.event_index, entry.player_id);
+        this.audioMap.set(key, { blobUrl, duration });
+      } catch {
+        console.warn("Failed to preload: %s", entry.file);
+      }
     });
 
     await Promise.all(promises);
@@ -71,24 +74,42 @@ export class AudioManager {
     return item ? item.duration * 1000 : 0;
   }
 
-  /** Play audio for a speaking event. Fire and forget. */
+  /** Play audio for a speaking event. */
   play(round: number, eventIndex: number, playerId: string): void {
     this.stop();
-    const item = this.audioMap.get(makeKey(round, eventIndex, playerId));
-    if (!item) return;
+    const key = makeKey(round, eventIndex, playerId);
+    const item = this.audioMap.get(key);
+    if (!item) {
+      console.warn("No audio for: %s", key);
+      return;
+    }
 
-    // Clone so we can replay the same audio multiple times
-    const audio = item.audio.cloneNode(true) as HTMLAudioElement;
+    const audio = new Audio(item.blobUrl);
     this.currentAudio = audio;
-    audio.currentTime = 0;
-    audio.play().catch(() => {
-      console.warn("Failed to play: %s", item.entry.file);
+    audio.play().catch((e) => {
+      console.warn("Play failed for %s: %s", key, e);
     });
   }
 
+  /** Pause current audio (resumable) */
+  pause(): void {
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+    }
+  }
+
+  /** Resume paused audio */
+  resume(): void {
+    if (this.currentAudio && this.currentAudio.paused) {
+      this.currentAudio.play().catch(() => {});
+    }
+  }
+
+  /** Stop and discard current audio */
   stop(): void {
     if (this.currentAudio) {
       this.currentAudio.pause();
+      this.currentAudio.currentTime = 0;
       this.currentAudio = null;
     }
   }
@@ -99,6 +120,10 @@ export class AudioManager {
 
   destroy(): void {
     this.stop();
+    // Release blob URLs
+    for (const item of this.audioMap.values()) {
+      URL.revokeObjectURL(item.blobUrl);
+    }
     this.audioMap.clear();
   }
 }
