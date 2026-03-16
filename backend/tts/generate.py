@@ -64,6 +64,7 @@ async def _generate_single(
 async def generate_audio(
     script_path: str,
     output_dir: str | None = None,
+    voice_config: dict[str, str] | None = None,
 ) -> dict:
     """Generate TTS audio for all speech events in a GameScript JSON.
 
@@ -94,7 +95,7 @@ async def generate_audio(
 
     # Assign voices to players
     player_ids = [p["id"] for p in script_data.get("players", [])]
-    voice_map = assign_voices(player_ids)
+    voice_map = assign_voices(player_ids, voice_config=voice_config)
 
     # Generate MP3 for each speech event
     manifest_files = []

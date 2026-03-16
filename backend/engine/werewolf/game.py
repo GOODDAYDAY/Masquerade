@@ -124,6 +124,7 @@ class WerewolfGame(GameEngine):
             )
 
         self.player_order = list(players)
+        random.shuffle(self.player_order)
 
         # Parse role counts from config
         werewolf_count = config.get("werewolf_count", 2)
@@ -365,7 +366,7 @@ class WerewolfGame(GameEngine):
             return [self._tool("witch_action", "决定是否使用药物", {
                 "use": {"type": "string", "description": "antidote（解药）/ poison（毒药）/ skip（不用药）"},
                 "target": {"type": "string", "description": "毒药目标玩家ID（仅use=poison时需要）"},
-            })]
+            }, required=["use"])]  # target is optional (only needed for poison)
         if self.phase == WerewolfPhase.NIGHT_SEER:
             return [self._tool("seer_check", "选择查验一名玩家的阵营", {
                 "target": {"type": "string", "description": "要查验的玩家ID"},
@@ -412,6 +413,14 @@ class WerewolfGame(GameEngine):
     # =========================================================================
     # GameEngine interface — Runner integration methods
     # =========================================================================
+
+    def get_actionable_players(self) -> list[str]:
+        if self.phase == WerewolfPhase.DAY_VOTING:
+            # All unvoted alive players can think in parallel
+            return [pid for pid in self.player_order
+                    if self.players[pid].alive and pid not in self.votes]
+        current = self.get_current_player()
+        return [current] if current else []
 
     def format_action_log(self, player_id: str, action: Action) -> str:
         phase = self.phase.value
@@ -959,7 +968,8 @@ class WerewolfGame(GameEngine):
     # =========================================================================
 
     @staticmethod
-    def _tool(name: str, description: str, properties: dict) -> dict:
+    def _tool(name: str, description: str, properties: dict,
+              required: list[str] | None = None) -> dict:
         """Build an OpenAI-compatible tool schema."""
         return {
             "type": "function",
@@ -969,7 +979,7 @@ class WerewolfGame(GameEngine):
                 "parameters": {
                     "type": "object",
                     "properties": properties,
-                    "required": list(properties.keys()),
+                    "required": required if required is not None else list(properties.keys()),
                 },
             },
         }

@@ -65,6 +65,7 @@ class PlayerInfo(BaseModel):
     appearance: str = ""
     role: str = ""
     word: str = ""
+    extra: dict = Field(default_factory=dict)  # Game-specific data from engine
 
 
 class GameResult(BaseModel):

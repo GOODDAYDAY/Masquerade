@@ -54,6 +54,7 @@ class SpyGame(GameEngine):
             )
 
         self.player_order = list(players)
+        random.shuffle(self.player_order)
         self.spy_count = config.get("spy_count", 0)
         self.blank_count = config.get("blank_count", 0)
         total_special = self.spy_count + self.blank_count
@@ -244,6 +245,14 @@ class SpyGame(GameEngine):
         if ps and ps.role == "blank":
             return get_blank_strategy()
         return get_spy_strategy()
+
+    def get_actionable_players(self) -> list[str]:
+        if self.phase == GamePhase.VOTING:
+            # All unvoted alive players can think in parallel
+            return [pid for pid in self.player_order
+                    if self.players[pid].alive and pid not in self.votes]
+        current = self.get_current_player()
+        return [current] if current else []
 
     def format_action_log(self, player_id: str, action: Action) -> str:
         if action.type == "speak":

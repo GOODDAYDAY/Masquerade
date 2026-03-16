@@ -32,6 +32,7 @@ class AppSettings(BaseSettings):
     scripts_dir: str = "output/scripts"
     output_dir: str = "output"
     llm: LLMDefaults = Field(default_factory=LLMDefaults)
+    max_concurrency: int = 1  # Max parallel LLM calls during batch phases (1 = serial)
 
     model_config = {"env_prefix": "MASQUERADE_", "env_nested_delimiter": "__", "env_file": ".env"}
 
@@ -45,6 +46,7 @@ class PlayerConfig(BaseModel):
     api_key: str = ""
     persona: str = ""
     appearance: str = ""
+    voice: str = ""  # edge-tts voice name, empty = auto-assign
 
 
 def load_yaml(path: Path | str) -> dict:

@@ -2,7 +2,7 @@
 # This file is entirely game-specific. The spy engine validates all fields.
 
 spy_count: 1
-blank_count: 1
+blank_count: 0
 
 # Optional: custom word pairs (if omitted, uses built-in default word pairs)
 # word_pairs:
@@ -22,14 +22,14 @@ players:
     persona: "极度自信，觉得自己一眼就能看穿别人，喜欢挑衅和反问"
     appearance: "30岁，花衬衫，墨镜架头顶，嘴角总挂着笑"
 
-  - name: "甄心软"
-    persona: "容易相信别人，不忍心投票淘汰人，经常被带节奏"
-    appearance: "25岁，白色卫衣，圆脸，大眼睛，看谁都觉得无辜"
-
-  - name: "甄腹黑"
-    persona: "表面附和所有人，暗地里收集信息，关键时刻突然反水"
-    appearance: "29岁，黑色高领，长发遮半边脸，笑起来让人发毛"
-
-  - name: "甄话多"
-    persona: "滔滔不绝，一个问题能扯出十个话题，经常把别人绕晕"
-    appearance: "27岁，红色棒球帽，运动服，手势特别多，坐不住"
+#  - name: "甄心软"
+#    persona: "容易相信别人，不忍心投票淘汰人，经常被带节奏"
+#    appearance: "25岁，白色卫衣，圆脸，大眼睛，看谁都觉得无辜"
+#
+#  - name: "甄腹黑"
+#    persona: "表面附和所有人，暗地里收集信息，关键时刻突然反水"
+#    appearance: "29岁，黑色高领，长发遮半边脸，笑起来让人发毛"
+#
+#  - name: "甄话多"
+#    persona: "滔滔不绝，一个问题能扯出十个话题，经常把别人绕晕"
+#    appearance: "27岁，红色棒球帽，运动服，手势特别多，坐不住"

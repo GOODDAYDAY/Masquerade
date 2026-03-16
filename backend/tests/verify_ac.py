@@ -163,18 +163,17 @@ def main():
     if g.pending_hunter_shot and g.hunter_id:
         g.apply_action(g.hunter_id, Action(type="hunter_shoot", player_id=g.hunter_id, payload={"target": "skip"}))
 
-    # Discussion
-    alive = [p for p in players if g.players[p].alive]
-    for p in alive:
-        if g.get_current_player() == p and g.phase.value == "day_discussion":
-            g.apply_action(p, Action(type="speak", player_id=p, payload={"content": "hmm"}))
+    # Discussion — drive via get_current_player (respects shuffled order)
+    while g.phase.value == "day_discussion" and g.get_current_player():
+        p = g.get_current_player()
+        g.apply_action(p, Action(type="speak", player_id=p, payload={"content": "hmm"}))
 
     # Vote: everyone votes for first wolf
     target_wolf = [w for w in wolves if g.players[w].alive][0]
-    alive = [p for p in players if g.players[p].alive]
-    for p in alive:
+    while g.phase.value == "day_voting" and g.get_current_player():
+        p = g.get_current_player()
         if p == target_wolf:
-            other_v = [x for x in alive if x != p and x not in wolves][0]
+            other_v = [x for x in g.player_order if g.players[x].alive and x != p and x not in wolves][0]
             g.apply_action(p, Action(type="vote", player_id=p, payload={"target_player_id": other_v}))
         else:
             g.apply_action(p, Action(type="vote", player_id=p, payload={"target_player_id": target_wolf}))
@@ -190,10 +189,9 @@ def main():
         g.apply_action(pid, Action(type="last_words", player_id=pid, payload={"content": "bye"}))
     if g.pending_hunter_shot and g.hunter_id:
         g.apply_action(g.hunter_id, Action(type="hunter_shoot", player_id=g.hunter_id, payload={"target": "skip"}))
-    alive = [p for p in players if g.players[p].alive]
-    for p in alive:
-        if g.get_current_player() == p and g.phase.value == "day_discussion":
-            g.apply_action(p, Action(type="speak", player_id=p, payload={"content": "hmm"}))
+    while g.phase.value == "day_discussion" and g.get_current_player():
+        p = g.get_current_player()
+        g.apply_action(p, Action(type="speak", player_id=p, payload={"content": "hmm"}))
     # Construct a 2-way tie: split voters into two groups voting for target_a and target_b
     alive = [p for p in players if g.players[p].alive]
     ta, tb = alive[0], alive[1]
@@ -221,7 +219,8 @@ def main():
             if p != ta and p != tb:
                 vote_plan[p] = tc
                 break
-    for p in alive:
+    while g.phase.value == "day_voting" and g.get_current_player():
+        p = g.get_current_player()
         g.apply_action(p, Action(type="vote", player_id=p, payload={"target_player_id": vote_plan[p]}))
     alive_after = [p for p in players if g.players[p].alive]
     results.append(check("AC-11 (tie = no exile)", len(alive_after) == len(alive)))
@@ -248,15 +247,14 @@ def main():
             g.apply_action(g.hunter_id, Action(type="hunter_shoot", player_id=g.hunter_id, payload={"target": "skip"}))
         if g.is_ended():
             break
-        alive = [p for p in players if g.players[p].alive]
-        for p in alive:
-            if g.get_current_player() == p and g.phase.value == "day_discussion":
-                g.apply_action(p, Action(type="speak", player_id=p, payload={"content": "vote wolf"}))
-        alive = [p for p in players if g.players[p].alive]
-        if g.players[wolf_target].alive:
-            for p in alive:
+        while g.phase.value == "day_discussion" and g.get_current_player():
+            p = g.get_current_player()
+            g.apply_action(p, Action(type="speak", player_id=p, payload={"content": "vote wolf"}))
+        if g.players[wolf_target].alive and g.phase.value == "day_voting":
+            while g.phase.value == "day_voting" and g.get_current_player():
+                p = g.get_current_player()
                 if p == wolf_target:
-                    ot = [x for x in alive if x != p][0]
+                    ot = [x for x in g.player_order if g.players[x].alive and x != p][0]
                     g.apply_action(p, Action(type="vote", player_id=p, payload={"target_player_id": ot}))
                 else:
                     g.apply_action(p, Action(type="vote", player_id=p, payload={"target_player_id": wolf_target}))
@@ -290,19 +288,20 @@ def main():
             g.apply_action(g.hunter_id, Action(type="hunter_shoot", player_id=g.hunter_id, payload={"target": "skip"}))
         if g.is_ended():
             break
-        alive = [p for p in players if g.players[p].alive]
-        for p in alive:
-            if g.get_current_player() == p and g.phase.value == "day_discussion":
-                g.apply_action(p, Action(type="speak", player_id=p, payload={"content": "hmm"}))
-        alive = [p for p in players if g.players[p].alive]
+        while g.phase.value == "day_discussion" and g.get_current_player():
+            p = g.get_current_player()
+            g.apply_action(p, Action(type="speak", player_id=p, payload={"content": "hmm"}))
         # Vote out a villager
+        alive = [p for p in players if g.players[p].alive]
         villager_t = [p for p in alive if g.players[p].role != "werewolf"][0]
-        for p in alive:
-            if p == villager_t:
-                ot = [x for x in alive if x != p][0]
-                g.apply_action(p, Action(type="vote", player_id=p, payload={"target_player_id": ot}))
-            else:
-                g.apply_action(p, Action(type="vote", player_id=p, payload={"target_player_id": villager_t}))
+        if g.phase.value == "day_voting":
+            while g.phase.value == "day_voting" and g.get_current_player():
+                p = g.get_current_player()
+                if p == villager_t:
+                    ot = [x for x in g.player_order if g.players[x].alive and x != p][0]
+                    g.apply_action(p, Action(type="vote", player_id=p, payload={"target_player_id": ot}))
+                else:
+                    g.apply_action(p, Action(type="vote", player_id=p, payload={"target_player_id": villager_t}))
         if g.is_ended():
             break
     if g.is_ended():
