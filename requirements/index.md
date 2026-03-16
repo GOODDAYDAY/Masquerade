@@ -15,3 +15,4 @@
 | REQ-011 | Werewolf Prompt Intelligence Upgrade | Completed | 2026-03-16
 | REQ-012 | Theater Side Panels — History & Context | Completed | 2026-03-16 | Werewolf game engine: refactor Runner to remove Spy coupling, implement night/day phases with gesture-based communication, 6 roles, role-specific LLM strategies |
 | REQ-013 | Remotion Video Rendering | Completed | 2026-03-16 | Replace CDP screencast with Remotion frame-driven rendering: deterministic 2K 60fps MP4 output with perfect audio sync, GPU-accelerated encoding |
+| REQ-014 | AI Intelligence & Prompt Upgrade | Development Done | 2026-03-16 | Eliminate name bias, enrich personas, deepen strategic reasoning, evidence-based voting, prompt overhaul for all roles |
