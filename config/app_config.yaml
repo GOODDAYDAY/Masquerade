@@ -8,6 +8,10 @@ log_dir: "logs"
 scripts_dir: "output/scripts"
 output_dir: "output"
 
+# Concurrency control: max parallel LLM calls during batch phases (e.g. voting)
+# Set to 1 for serial execution (safe default), increase for speed (e.g. 3-5)
+max_concurrency: 5
+
 # Global LLM defaults — players inherit these when not specified in game_config.yaml
 llm:
   model: "deepseek-chat"

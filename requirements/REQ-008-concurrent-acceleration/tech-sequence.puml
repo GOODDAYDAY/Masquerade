@@ -1,0 +1,61 @@
+@startuml
+title REQ-008 Concurrent Voting - Sequence Diagram
+
+participant "GameRunner" as R
+participant "GameEngine" as E
+participant "Agent P1" as A1
+participant "Agent P2" as A2
+participant "Agent P3" as A3
+participant "Semaphore(2)" as S
+participant "Recorder" as REC
+
+== Batch Discovery ==
+R -> E: get_actionable_players()
+E --> R: [P1, P2, P3] (voting phase)
+
+== Context Snapshot ==
+R -> E: get_public_state() [snapshot for all]
+R -> E: get_private_info(P1)
+R -> E: get_private_info(P2)
+R -> E: get_private_info(P3)
+note right: All agents see the\nsame public state
+
+== Parallel Think (max_concurrency=2) ==
+
+R -> S: acquire (P1)
+S --> R: granted
+R -> A1: think_and_act() [async]
+
+R -> S: acquire (P2)
+S --> R: granted
+R -> A2: think_and_act() [async]
+
+R -> S: acquire (P3)
+note right: P3 waits for a slot
+A1 --> R: AgentResponse(P1)
+R -> S: release (P1)
+S --> R: granted (P3)
+R -> A3: think_and_act() [async]
+
+A2 --> R: AgentResponse(P2)
+A3 --> R: AgentResponse(P3)
+
+== Serial Apply ==
+
+R -> E: apply_action(P1, vote)
+R -> REC: record_event(P1)
+
+R -> E: apply_action(P2, vote)
+R -> REC: record_event(P2)
+
+R -> E: apply_action(P3, vote)
+note right: Last vote triggers\n_resolve_votes()
+R -> REC: record_event(P3)
+
+== Round End ==
+R -> E: get_actionable_players()
+E --> R: [] (all voted)
+R -> E: get_vote_result()
+R -> REC: record_vote_result()
+
+@enduml

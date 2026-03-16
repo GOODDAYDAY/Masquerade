@@ -70,6 +70,18 @@ class GameEngine(ABC):
 
     # --- Optional overrides with default implementations ---
 
+    def get_actionable_players(self) -> list[str]:
+        """Return all players who can act right now.
+
+        If multiple players are returned, the runner may process their
+        LLM thinking in parallel (with concurrency control).
+        Override in subclasses to enable concurrency for independent phases
+        (e.g. voting where all players decide simultaneously).
+        Default: wraps get_current_player() into a single-element list.
+        """
+        current = self.get_current_player()
+        return [current] if current else []
+
     def format_action_log(self, player_id: str, action: Action) -> str:
         """Format an action for console logging. Override for game-specific formatting."""
         return "%s: %s" % (player_id, action.type)

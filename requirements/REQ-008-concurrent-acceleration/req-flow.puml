@@ -1,0 +1,58 @@
+@startuml
+title REQ-008 Runner Game Loop - Concurrent Execution Flow
+
+start
+:Engine setup + create agents;
+
+repeat
+  :batch = engine.get_actionable_players();
+
+  if (batch is empty?) then (yes)
+    :Round end processing\n(vote result, summary, broadcast);
+    if (engine.is_ended()?) then (yes)
+      stop
+    endif
+    :Check if round changed;
+  else (no)
+    if (len(batch) == 1?) then (yes)
+      :=== Serial Mode ===;
+      :strategy = engine.get_agent_strategy(pid);
+      :response = agent.think_and_act();
+      note right: 1 agent, sequential
+      :engine.apply_action(pid, response.action);
+      :Record event + broadcast;
+    else (no)
+      :=== Concurrent Mode ===;
+      :Prepare all agent contexts;
+
+      :Parallel think with Semaphore(max_concurrency);
+      fork
+        :agent_1.think_and_act()
+        (LLM calls);
+      fork again
+        :agent_2.think_and_act()
+        (LLM calls);
+      fork again
+        :agent_N.think_and_act()
+        (LLM calls);
+      end merge
+      note right
+        Semaphore limits
+        concurrent LLM calls
+        to max_concurrency
+      end note
+
+      :Collect all AgentResponses;
+
+      :Serial apply_action for each;
+      note right: Engine state mutation\nmust be sequential
+      :Record events + broadcast for each;
+    endif
+  endif
+
+repeat while (game not ended)
+
+:Save script + generate TTS;
+stop
+
+@enduml
