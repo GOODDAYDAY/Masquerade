@@ -1,23 +1,22 @@
 #!/bin/bash
 set -e
-# Build the project — install backend + frontend dependencies
-# Prerequisite: Python 3.11+, Node.js 18+
-
 cd "$(dirname "$0")/.."
 
-echo "=== Backend ==="
-echo "Installing Python dependencies..."
-pip install -e ".[dev,render]"
-
+echo "========================================"
+echo "  Masquerade - Build Check"
+echo "========================================"
 echo ""
-echo "=== Frontend ==="
-echo "Installing npm dependencies..."
+
+echo "[1/2] TypeScript type check..."
 cd frontend
-npm install
-echo "Building frontend..."
-npx tsc -b
-npx vite build
-cd ..
+npx tsc --noEmit
+echo "TypeScript: OK"
 
 echo ""
-echo "Build completed."
+echo "[2/2] Vite build..."
+npx vite build
+
+echo ""
+echo "========================================"
+echo "  Build: ALL PASSED"
+echo "========================================"

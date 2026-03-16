@@ -1,23 +1,34 @@
 @echo off
-chcp 65001 >nul
-REM Build the project — install backend + frontend dependencies
-REM Prerequisite: Python 3.11+, Node.js 18+
-
+chcp 65001 >/dev/null 2>/dev/null
 cd /d "%~dp0\.."
 
-echo === Backend ===
-echo Installing Python dependencies...
-pip install -e ".[dev,render]"
-
+echo ========================================
+echo   Masquerade - Build Check
+echo ========================================
 echo.
-echo === Frontend ===
-echo Installing npm dependencies...
+
+echo [1/2] TypeScript type check...
 cd frontend
-call npm install
-echo Building frontend...
-call npx tsc -b
-call npx vite build
-cd ..
+call npx tsc --noEmit
+if %errorlevel% neq 0 (
+    echo.
+    echo TypeScript check FAILED.
+    pause
+    exit /b 1
+)
+echo TypeScript: OK
 
 echo.
-echo Build completed.
+echo [2/2] Vite build...
+call npx vite build
+if %errorlevel% neq 0 (
+    echo.
+    echo Vite build FAILED.
+    pause
+    exit /b 1
+)
+
+echo.
+echo ========================================
+echo   Build: ALL PASSED
+echo ========================================
