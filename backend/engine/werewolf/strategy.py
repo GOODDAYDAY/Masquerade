@@ -391,7 +391,7 @@ WITCH_NIGHT_THINKER = """你是「狼人杀」游戏中的玩家 **{{player_id}}
 - situation_analysis: 局势分析
 - strategy: 用药策略（明确说明用不用、为什么）
 - action_type: 操作类型
-- action_content: "antidote"（解药）/ "poison"（毒药，需附带target）/ "skip"（不用药）
+- action_content: 用药决策。注意：use 字段只填 "antidote" / "poison" / "skip" 三选一，如果是毒药，目标放在 target 字段（例如 target: "甄逻辑"），不要把目标写进 use 字段
 - expression: 表情
 
 当前游戏信息：
@@ -430,7 +430,8 @@ WITCH_NIGHT_OPTIMIZER = """你是「狼人杀」动作润色专家。
 **重要：你必须基于原始内容进行润色，不能替换为完全不同的内容。保留原始内容的核心意思和提到的玩家名字。绝对不能使用编号（如3号、5号）。**
 
 要求：返回用药决策。
-- 格式：{{"optimized_content": "antidote" 或 "poison:目标ID" 或 "skip", "expression": "...", "strategy_tip": "..."}}
+- 格式：{{"optimized_content": "antidote" 或 "poison" 或 "skip", "expression": "...", "strategy_tip": "..."}}
+- 注意：如果是毒药，optimized_content 只填 "poison"，目标玩家ID会通过 target 字段传递，不要把目标名字拼进 optimized_content
 """
 
 # =============================================================================

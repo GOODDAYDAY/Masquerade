@@ -593,7 +593,16 @@ class WerewolfGame(GameEngine):
         if player_id != self.witch_id:
             raise IllegalActionError("Only witch can use potions")
 
-        use = action.payload.get("use", "skip")
+        use = action.payload.get("use", "skip").strip()
+
+        # Tolerate AI returning "poison:target" or "poison target" in the use field
+        if use.startswith("poison") and len(use) > 6:
+            sep = use[6]  # character after "poison"
+            if sep in (":", " ", "：", "，", ","):
+                target_from_use = use[7:].strip()
+                if target_from_use and "target" not in action.payload:
+                    action.payload["target"] = target_from_use
+                use = "poison"
 
         if use == "antidote":
             if self.witch_antidote_used:
