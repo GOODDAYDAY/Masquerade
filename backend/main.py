@@ -76,6 +76,14 @@ def main() -> None:
     else:
         print("\nGame ended without result")
 
+    # Print script filename for automation (parseable by scripts)
+    import glob
+    from pathlib import Path as _Path
+    scripts = sorted(glob.glob("output/scripts/game_%s_*.json" % game_type))
+    if scripts:
+        latest = _Path(scripts[-1]).name
+        print("SCRIPT_FILE=%s" % latest)
+
 
 if __name__ == "__main__":
     main()
