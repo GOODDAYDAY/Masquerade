@@ -1,6 +1,7 @@
 """Thinker node — analyzes the game situation and generates strategy.
 
 Uses game-specific prompt template from AgentStrategy (injected via state).
+Payload construction is generic: uses tools_schema to determine field names.
 """
 
 import json
@@ -10,6 +11,10 @@ from backend.agent.state import AgentState
 from backend.core.logging import get_logger
 
 logger = get_logger("agent.nodes.thinker")
+
+# Heuristics for identifying player-target fields
+_TARGET_NAME_HINTS = ("target", "player_id")
+_TARGET_DESC_HINTS = ("玩家", "player", "ID")
 
 
 async def thinker_node(state: AgentState, llm_client: LLMClient) -> dict:
@@ -33,6 +38,15 @@ async def thinker_node(state: AgentState, llm_client: LLMClient) -> dict:
     if feedback:
         user_prompt += "\n\n上次策略被评估为不够好，反馈如下：\n" + feedback
         user_prompt += "\n请重新分析并改进你的策略。"
+
+    # Append player name reminder — prevents LLM from using numbers/codes
+    alive_players = state.get("public_state", {}).get("alive_players", [])
+    if alive_players:
+        user_prompt += (
+            "\n\n【重要提醒】当前存活玩家名字：%s。"
+            "你必须使用这些真实名字，绝对不能用编号（如1号、3号）或代号（如玩家A、玩家B）。"
+            % "、".join(alive_players)
+        )
 
     messages.append({"role": "user", "content": user_prompt})
 
@@ -72,32 +86,95 @@ async def thinker_node(state: AgentState, llm_client: LLMClient) -> dict:
         available = state.get("available_actions", [])
         action_type = available[0] if available else "speak"
 
-    # Log the full thinking process
+    # Log the thinking process
     analysis_str = json.dumps(analysis, ensure_ascii=False) if isinstance(analysis, dict) else str(analysis)
     strategy_str = json.dumps(strategy, ensure_ascii=False) if isinstance(strategy, dict) else str(strategy)
     logger.info("[%s] Thinker — situation_analysis: %s", player_id, analysis_str[:200])
     logger.info("[%s] Thinker — strategy: %s", player_id, strategy_str[:200])
-    if action_type == "speak":
-        logger.info("[%s] Thinker → action=speak, content='%s'",
-                     player_id, str(action_content)[:100])
-    elif action_type == "vote":
-        logger.info("[%s] Thinker → action=vote, target=%s", player_id, action_content)
-    else:
-        logger.info("[%s] Thinker → action=%s", player_id, action_type)
+    logger.info("[%s] Thinker → action=%s, content='%s'",
+                player_id, action_type, str(action_content)[:100])
+
+    tools_schema = state.get("tools_schema", [])
+    alive_players = state.get("public_state", {}).get("alive_players", [])
+    payload = _build_payload(action_type, action_content, tools_schema, alive_players)
 
     return {
         "situation_analysis": analysis,
         "strategy": strategy,
         "final_action_type": action_type,
-        "final_action_payload": _build_payload(action_type, action_content),
+        "final_action_payload": payload,
         "expression": expression,
     }
 
 
-def _build_payload(action_type: str, content: str) -> dict:
-    """Build action payload based on action type."""
-    if action_type == "speak":
+def _is_player_target(field_name: str, description: str) -> bool:
+    """Heuristic: does this field represent a player target?"""
+    if any(hint in field_name.lower() for hint in _TARGET_NAME_HINTS):
+        return True
+    if any(hint in description for hint in _TARGET_DESC_HINTS):
+        return True
+    return False
+
+
+def _extract_player_name(text: str, alive_players: list[str]) -> str:
+    """Extract a player name from potentially long text.
+
+    If the text contains an alive player's name, return the first match.
+    Otherwise return the text stripped and truncated.
+    """
+    text = str(text).strip()
+    # Direct match
+    if text in alive_players:
+        return text
+    # Search for any alive player name in the text
+    for name in alive_players:
+        if name in text:
+            return name
+    # Fallback: return first line, stripped
+    first_line = text.split("\n")[0].strip()
+    return first_line[:50] if first_line else text[:50]
+
+
+def _build_payload(action_type: str, content: str, tools_schema: list[dict],
+                   alive_players: list[str] | None = None) -> dict:
+    """Build action payload using tools_schema to determine field names.
+
+    Finds the matching tool definition, then fills the first required field
+    with the LLM's action_content. For player-target fields, extracts just
+    the player name from potentially long text.
+    """
+    # Find matching tool
+    tool_def = None
+    for tool in tools_schema:
+        if tool.get("function", {}).get("name") == action_type:
+            tool_def = tool
+            break
+
+    if not tool_def:
+        # Fallback: guess based on content
         return {"content": content}
-    if action_type == "vote":
-        return {"target_player_id": content}
-    return {"content": content}
+
+    params = tool_def.get("function", {}).get("parameters", {})
+    required = params.get("required", [])
+    properties = params.get("properties", {})
+
+    if not required:
+        return {"content": content}
+
+    # Build payload: put action_content into the first required field
+    # For player-target fields, clean the content to extract just the name
+    payload = {}
+    content_placed = False
+    for field_name in required:
+        if not content_placed:
+            prop = properties.get(field_name, {})
+            desc = prop.get("description", "")
+            if _is_player_target(field_name, desc) and alive_players:
+                payload[field_name] = _extract_player_name(content, alive_players)
+            else:
+                payload[field_name] = content
+            content_placed = True
+        else:
+            payload[field_name] = ""
+
+    return payload

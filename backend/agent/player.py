@@ -128,15 +128,19 @@ class PlayerAgent:
         """Add a public event to this player's memory."""
         self.memory.add_public(event_summary)
 
-    def _fallback_response(self, available_actions: list[str], start_time: float) -> AgentResponse:
-        """Generate a minimal valid response when the graph fails."""
+    def _fallback_response(
+        self, available_actions: list[str], start_time: float,
+        tools_schema: list[dict] | None = None,
+    ) -> AgentResponse:
+        """Generate a minimal valid response when the graph fails.
+
+        Uses tools_schema to build a generic fallback payload — no hardcoded
+        action types. Text fields get "...", target fields get empty string
+        (force-fix in evaluator will correct targets).
+        """
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
         action_type = available_actions[0] if available_actions else "speak"
-
-        if action_type == "speak":
-            payload = {"content": "...让我想想。"}
-        else:
-            payload = {"target_player_id": ""}
+        payload = _build_fallback_payload(action_type, tools_schema or [])
 
         return AgentResponse(
             thinking="[Fallback] Graph execution failed, using default response",
@@ -144,3 +148,17 @@ class PlayerAgent:
             expression="neutral",
             thinking_duration_ms=elapsed_ms,
         )
+
+
+def _build_fallback_payload(action_type: str, tools_schema: list[dict]) -> dict:
+    """Build a minimal valid payload from tools_schema for fallback responses."""
+    for tool in tools_schema:
+        if tool.get("function", {}).get("name") == action_type:
+            params = tool.get("function", {}).get("parameters", {})
+            required = params.get("required", [])
+            payload = {}
+            for field_name in required:
+                payload[field_name] = "..."
+            return payload if payload else {"content": "..."}
+    # No matching tool — generic fallback
+    return {"content": "..."}

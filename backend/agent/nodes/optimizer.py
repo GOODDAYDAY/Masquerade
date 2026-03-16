@@ -1,6 +1,8 @@
 """Optimizer node — polishes the final output to sound natural and human-like.
 
 Uses game-specific prompt from AgentStrategy (injected via state).
+Uses tools_schema to generically determine which field to optimize
+and whether to skip LLM call for target-only actions.
 """
 
 import json
@@ -11,24 +13,55 @@ from backend.core.logging import get_logger
 
 logger = get_logger("agent.nodes.optimizer")
 
+# Positive-match hints: only fields with these description keywords get LLM polishing.
+# This prevents gesture/action descriptions from being corrupted by the optimizer.
+_OPTIMIZE_DESC_HINTS = ("发言", "内容", "说", "看法", "推理", "遗言")
+
+
+def _get_content_field(action_type: str, tools_schema: list[dict]) -> str | None:
+    """Find the text content field that benefits from LLM polishing.
+
+    Uses positive matching: only fields whose description contains speech/content
+    keywords (发言, 内容, 说, etc.) are considered optimizable.
+    Fields like 'gesture' (动作描述) are intentionally excluded.
+    Returns None if no optimizable field found — optimizer will skip LLM call.
+    """
+    for tool in tools_schema:
+        if tool.get("function", {}).get("name") == action_type:
+            params = tool.get("function", {}).get("parameters", {})
+            required = params.get("required", [])
+            properties = params.get("properties", {})
+            for field_name in required:
+                prop = properties.get(field_name, {})
+                desc = prop.get("description", "")
+                if any(hint in desc for hint in _OPTIMIZE_DESC_HINTS):
+                    return field_name
+            return None
+    return None
+
 
 async def optimizer_node(state: AgentState, llm_client: LLMClient) -> dict:
     """Polish the action content using game-specific optimization prompt."""
     action_type = state.get("final_action_type", "")
-
     player_id = state.get("player_id", "?")
+    tools_schema = state.get("tools_schema", [])
 
-    # Skip optimization for vote actions — derive strategy_tip from thinker's strategy
-    if action_type == "vote":
+    # Determine if this action has text content to optimize
+    content_field = _get_content_field(action_type, tools_schema)
+
+    # Target-only actions (vote, protect, wolf_kill, etc.): skip LLM optimization
+    if content_field is None:
         strategy_tip = _extract_short_tip(state.get("strategy", ""))
-        logger.info("[%s] Optimizer: skipping LLM (vote action), tip='%s'", player_id, strategy_tip[:40])
+        logger.info("[%s] Optimizer: skipping LLM (target-only action: %s), tip='%s'",
+                    player_id, action_type, strategy_tip[:40])
         return {
             "optimized_content": json.dumps(state.get("final_action_payload", {}), ensure_ascii=False),
             "strategy_tip": strategy_tip,
         }
 
+    # Text-content actions (speak, wolf_discuss, last_words, etc.): optimize via LLM
     payload = state.get("final_action_payload", {})
-    raw_content = payload.get("content", "") or payload.get("target_player_id", "")
+    raw_content = payload.get(content_field, "")
 
     prompt_template = state.get("optimizer_prompt", "")
     prompt = prompt_template.format(
@@ -38,11 +71,21 @@ async def optimizer_node(state: AgentState, llm_client: LLMClient) -> dict:
         action_type=action_type,
     )
 
+    # Append alive player names so LLM knows the real names (prevents fabrication)
+    alive_players = state.get("public_state", {}).get("alive_players", [])
+    if alive_players:
+        prompt += (
+            "\n\n【重要提醒】当前存活玩家名字：%s。"
+            "你必须使用这些真实名字，绝对不能编造其他名字（如小明、小红、小陈等）。"
+            % "、".join(alive_players)
+        )
+
     messages = [{"role": "user", "content": prompt}]
     response = await llm_client.chat(messages, temperature=0.9)
 
     optimized = raw_content
     expression = state.get("expression", "neutral")
+    strategy_tip = ""
 
     try:
         json_str = response
@@ -59,14 +102,12 @@ async def optimizer_node(state: AgentState, llm_client: LLMClient) -> dict:
         logger.warning("Failed to parse optimizer JSON, using original content")
         strategy_tip = _extract_short_tip(state.get("strategy", ""))
 
-    # Update the action payload with optimized content
+    # Update the content field in payload
     updated_payload = dict(state.get("final_action_payload", {}))
-    if action_type == "speak":
-        updated_payload["content"] = optimized
+    updated_payload[content_field] = optimized
 
     logger.info("[%s] Optimizer → content='%s', expression=%s",
                  player_id, str(optimized)[:60], expression)
-
     logger.info("[%s] Optimizer → strategy_tip='%s'", player_id, strategy_tip[:40] if strategy_tip else "")
 
     return {
@@ -81,7 +122,6 @@ def _extract_short_tip(strategy_text: str) -> str:
     """Extract a short tip from the thinker's raw strategy text (fallback)."""
     if not strategy_text:
         return ""
-    # If it's JSON, try to extract a string value
     if isinstance(strategy_text, dict):
         strategy_text = str(strategy_text)
     # Take first sentence, max 50 chars

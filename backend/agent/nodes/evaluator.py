@@ -1,10 +1,11 @@
 """Evaluator node — assesses the proposed strategy and decides if retry is needed.
 
 Two-layer evaluation:
-  1. Programmatic validation — checks action legality (vote target valid, speech not empty, etc.)
+  1. Programmatic validation — checks action legality using tools_schema from engine
   2. LLM scoring — uses game-specific prompt to evaluate strategy quality
 
-If programmatic validation fails, skip LLM call and return score=0 with clear feedback.
+Validation is fully generic: it reads the engine's tools_schema to determine
+required fields and player-target fields. No game-specific knowledge needed.
 """
 
 import json
@@ -18,9 +19,33 @@ logger = get_logger("agent.nodes.evaluator")
 _DEFAULT_THRESHOLD = 6.0
 _DEFAULT_MAX_RETRIES = 2
 
+# Heuristics for identifying speech content fields (same as optimizer)
+_SPEECH_DESC_HINTS = ("发言", "内容", "说", "看法", "推理", "遗言")
+
+# Heuristics for identifying player-target fields
+_TARGET_NAME_HINTS = ("target", "player_id")
+_TARGET_DESC_HINTS = ("玩家", "player", "ID")
+
+
+def _find_tool(tools_schema: list[dict], action_type: str) -> dict | None:
+    """Find the tool definition matching the action type."""
+    for tool in tools_schema:
+        if tool.get("function", {}).get("name") == action_type:
+            return tool
+    return None
+
+
+def _is_player_field(field_name: str, description: str) -> bool:
+    """Heuristic: does this field represent a player target?"""
+    if any(hint in field_name.lower() for hint in _TARGET_NAME_HINTS):
+        return True
+    if any(hint in description for hint in _TARGET_DESC_HINTS):
+        return True
+    return False
+
 
 def _validate_action(state: AgentState) -> str | None:
-    """Programmatic validation of the proposed action.
+    """Programmatic validation using tools_schema — fully game-agnostic.
 
     Returns None if valid, or an error message string if invalid.
     """
@@ -29,41 +54,67 @@ def _validate_action(state: AgentState) -> str | None:
     player_id = state.get("player_id", "")
     public_state = state.get("public_state", {})
     available_actions = state.get("available_actions", [])
+    tools_schema = state.get("tools_schema", [])
 
     # Check action type is available
     if action_type not in available_actions:
         return "action_type '%s' is not available. Available actions: %s" % (action_type, available_actions)
 
-    if action_type == "speak":
-        content = payload.get("content", "")
-        if not content or not content.strip():
-            return "Speech content is empty. You must say something."
+    # Find matching tool definition from engine's tools_schema
+    tool_def = _find_tool(tools_schema, action_type)
+    if not tool_def:
+        return None  # No schema to validate against — pass through
 
-    elif action_type == "vote":
-        target = payload.get("target_player_id", "")
-        if not target:
-            return "Vote target is empty. You must vote for a player."
+    params = tool_def.get("function", {}).get("parameters", {})
+    required = params.get("required", [])
+    properties = params.get("properties", {})
+    alive = public_state.get("alive_players", [])
 
-        # Cannot vote for yourself
-        if target == player_id:
-            alive_players = public_state.get("alive_players", [])
-            valid_targets = [p for p in alive_players if p != player_id]
-            return (
-                "You voted for yourself ('%s'). This is not allowed. "
-                "You must vote for another player. Valid targets: %s"
-                % (target, valid_targets)
-            )
+    for field_name in required:
+        value = payload.get(field_name, "")
+        prop_def = properties.get(field_name, {})
+        description = prop_def.get("description", "")
 
-        # Target must be alive
-        alive_players = public_state.get("alive_players", [])
-        if alive_players and target not in alive_players:
-            valid_targets = [p for p in alive_players if p != player_id]
-            return (
-                "Vote target '%s' is not alive or does not exist. "
-                "Valid targets: %s" % (target, valid_targets)
-            )
+        # "skip" is a valid sentinel for optional actions (e.g. hunter_shoot)
+        if str(value).strip() == "skip":
+            continue
+
+        # Required field must not be empty
+        if not value or not str(value).strip():
+            return "%s: required field '%s' is empty" % (action_type, field_name)
+
+        # Player-target field: validate against alive players
+        if _is_player_field(field_name, description):
+            if value == player_id:
+                valid_targets = [p for p in alive if p != player_id]
+                return (
+                    "%s: cannot target yourself ('%s'). Valid targets: %s"
+                    % (action_type, value, valid_targets)
+                )
+            if alive and value not in alive:
+                valid_targets = [p for p in alive if p != player_id]
+                return (
+                    "%s: target '%s' is not alive or does not exist. Valid targets: %s"
+                    % (action_type, value, valid_targets)
+                )
 
     return None
+
+
+def _has_speech_content(state: AgentState) -> bool:
+    """Check if the current action has a speech/content field worth LLM scoring."""
+    action_type = state.get("final_action_type", "")
+    tools_schema = state.get("tools_schema", [])
+    for tool in tools_schema:
+        if tool.get("function", {}).get("name") == action_type:
+            params = tool.get("function", {}).get("parameters", {})
+            for field_name in params.get("required", []):
+                prop = params.get("properties", {}).get(field_name, {})
+                desc = prop.get("description", "")
+                if any(hint in desc for hint in _SPEECH_DESC_HINTS):
+                    return True
+            return False
+    return False
 
 
 async def evaluator_node(state: AgentState, llm_client: LLMClient) -> dict:
@@ -82,7 +133,19 @@ async def evaluator_node(state: AgentState, llm_client: LLMClient) -> dict:
             "retry_count": retry_count + 1,
         }
 
-    # Layer 2: LLM scoring
+    # Skip LLM scoring for target-only actions (protect, vote, wolf_kill, etc.)
+    # Programmatic validation is sufficient for these — LLM scoring often hallucinates
+    # rule violations (e.g. "consecutive guard" on first night). Only score speech-like actions.
+    if not _has_speech_content(state):
+        logger.info("[%s] Evaluator: programmatic validation PASSED, skipping LLM (target-only action)", player_id)
+        threshold = state.get("evaluation_threshold", _DEFAULT_THRESHOLD)
+        return {
+            "evaluation_score": threshold,  # Auto-pass
+            "evaluation_feedback": "",
+            "retry_count": retry_count + 1,
+        }
+
+    # Layer 2: LLM scoring (only for speech/content actions)
     prompt_template = state.get("evaluator_prompt", "")
     situation_analysis = state.get("situation_analysis", "")
     strategy = state.get("strategy", "")
@@ -92,6 +155,7 @@ async def evaluator_node(state: AgentState, llm_client: LLMClient) -> dict:
         strategy=json.dumps(strategy, ensure_ascii=False) if isinstance(strategy, dict) else str(strategy),
         action_type=state.get("final_action_type", ""),
         action_payload=json.dumps(state.get("final_action_payload", {}), ensure_ascii=False),
+        private_info=json.dumps(state.get("private_info", {}), ensure_ascii=False),
     )
 
     messages = [{"role": "user", "content": prompt}]
@@ -142,7 +206,6 @@ def should_retry(state: AgentState) -> str:
     if retry_count > max_retries:
         logger.warning("[%s] Evaluator: max retries (%d) reached, force-fixing if needed",
                         player_id, max_retries)
-        # Force-fix obvious violations before proceeding
         _force_fix_action(state)
     else:
         logger.info("[%s] Evaluator: PASSED → proceeding to Optimizer", player_id)
@@ -151,21 +214,69 @@ def should_retry(state: AgentState) -> str:
 
 
 def _force_fix_action(state: AgentState) -> None:
-    """Last-resort fix for invalid actions when max retries are exhausted."""
+    """Last-resort fix for invalid actions using tools_schema — fully game-agnostic.
+
+    Fixes action_type if not in available_actions, then scans required fields:
+    player-target fields get reassigned to the first valid alive player;
+    empty text fields get a placeholder.
+    """
     action_type = state.get("final_action_type", "")
     payload = state.get("final_action_payload", {})
     player_id = state.get("player_id", "")
     public_state = state.get("public_state", {})
+    tools_schema = state.get("tools_schema", [])
+    available_actions = state.get("available_actions", [])
 
-    if action_type == "vote":
-        target = payload.get("target_player_id", "")
-        alive = public_state.get("alive_players", [])
-        valid_targets = [p for p in alive if p != player_id]
+    # Fix action_type if not in available_actions
+    if available_actions and action_type not in available_actions:
+        old_type = action_type
+        action_type = available_actions[0]
+        state["final_action_type"] = action_type
+        logger.warning("[%s] Force-fixed action_type: '%s' → '%s'", player_id, old_type, action_type)
+        # Rebuild payload for the corrected action type
+        tool_def = _find_tool(tools_schema, action_type)
+        if tool_def:
+            params = tool_def.get("function", {}).get("parameters", {})
+            required = params.get("required", [])
+            new_payload = {}
+            for field_name in required:
+                new_payload[field_name] = payload.get(field_name, "")
+            payload = new_payload
+            state["final_action_payload"] = payload
 
-        if target == player_id or target not in alive:
-            if valid_targets:
-                new_target = valid_targets[0]
-                payload["target_player_id"] = new_target
-                state["final_action_payload"] = payload
-                logger.warning("[%s] Force-fixed vote: '%s' → '%s'",
-                               player_id, target, new_target)
+    alive = public_state.get("alive_players", [])
+    valid_targets = [p for p in alive if p != player_id]
+
+    tool_def = _find_tool(tools_schema, action_type)
+    if not tool_def:
+        return
+
+    params = tool_def.get("function", {}).get("parameters", {})
+    required = params.get("required", [])
+    properties = params.get("properties", {})
+    fixed = False
+
+    for field_name in required:
+        value = payload.get(field_name, "")
+        prop_def = properties.get(field_name, {})
+        description = prop_def.get("description", "")
+
+        if _is_player_field(field_name, description):
+            # Fix invalid player target
+            if not value or value == player_id or (alive and value not in alive):
+                if valid_targets:
+                    old_value = value
+                    payload[field_name] = valid_targets[0]
+                    fixed = True
+                    logger.warning("[%s] Force-fixed %s.%s: '%s' → '%s'",
+                                   player_id, action_type, field_name, old_value, valid_targets[0])
+        else:
+            # Fix empty required text field
+            if not value or not str(value).strip():
+                payload[field_name] = "..."
+                fixed = True
+                logger.warning("[%s] Force-fixed %s.%s: empty → '...'",
+                               player_id, action_type, field_name)
+
+    if fixed:
+        state["final_action_payload"] = payload
