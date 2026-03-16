@@ -13,19 +13,33 @@ interface FinaleSceneProps {
   onComplete?: () => void;
 }
 
-function getWinnerDisplay(winner: string, players: PlayerInfo[]): { text: string; colorClass: string } {
-  if (winner === "civilian") return { text: "平民阵营获胜", colorClass: "text-theater-accent" };
-  if (winner === "spy") return { text: "卧底获胜", colorClass: "text-theater-danger" };
-  if (winner === "blank") return { text: "白板获胜", colorClass: "text-gray-300" };
-  if (winner === "spy,blank") return { text: "非平民阵营获胜", colorClass: "text-theater-danger" };
-  // All-blank or other composite: winner is comma-separated player IDs
-  const winnerIds = winner.split(",");
-  const names = winnerIds.map((id) => players.find((p) => p.id === id)?.name ?? id);
-  return { text: `存活者获胜：${names.join("、")}`, colorClass: "text-gray-300" };
+const WINNER_MAP: Record<string, { text: string; colorClass: string }> = {
+  civilian: { text: "平民阵营获胜", colorClass: "text-theater-accent" },
+  spy: { text: "卧底获胜", colorClass: "text-theater-danger" },
+  blank: { text: "白板获胜", colorClass: "text-gray-300" },
+  "spy,blank": { text: "非平民阵营获胜", colorClass: "text-theater-danger" },
+  village: { text: "好人阵营获胜", colorClass: "text-theater-accent" },
+  wolf: { text: "狼人阵营获胜", colorClass: "text-theater-danger" },
+};
+
+function isWinnerRole(player: PlayerInfo, winner: string): boolean {
+  if (winner === player.role) return true;
+  // Check extra.faction for werewolf-style games
+  const faction = (player.extra as Record<string, unknown>)?.faction;
+  if (faction && faction === winner) return true;
+  // Spy game: spy/blank winners
+  if (winner.includes(player.role)) return true;
+  return false;
+}
+
+function getWinnerDisplay(winner: string): { text: string; colorClass: string } {
+  if (WINNER_MAP[winner]) return WINNER_MAP[winner];
+  // Fallback: show raw winner value
+  return { text: `${winner} 获胜`, colorClass: "text-gray-300" };
 }
 
 export default function FinaleScene({ result, players, onComplete }: FinaleSceneProps) {
-  const winnerInfo = getWinnerDisplay(result.winner, players);
+  const winnerInfo = getWinnerDisplay(result.winner);
   const firedRef = useRef(false);
 
   const durationSec = Math.round(result.total_duration_ms / 1000);
@@ -53,7 +67,7 @@ export default function FinaleScene({ result, players, onComplete }: FinaleScene
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8, duration: 0.5 }}>
         {players.map((p) => (
           <motion.div key={p.id}
-            animate={(p.role === "spy" || p.role === "blank") ? { scale: [1, 1.12, 1], transition: { repeat: 2, duration: 0.4 } } : {}}>
+            animate={isWinnerRole(p, result.winner) ? { scale: [1, 1.12, 1], transition: { repeat: 2, duration: 0.4 } } : {}}>
             <PlayerAvatar name={p.name} playerId={p.id} size={52}
               eliminated={result.eliminated_order.includes(p.id)}
               word={p.word} role={p.role} />

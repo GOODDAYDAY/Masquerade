@@ -16,6 +16,26 @@ interface PlayerAvatarProps {
   role?: string;
 }
 
+// Role → Chinese label (for games without words, like werewolf)
+const ROLE_LABELS: Record<string, string> = {
+  werewolf: "狼人",
+  villager: "村民",
+  seer: "预言家",
+  witch: "女巫",
+  hunter: "猎人",
+  guard: "守卫",
+};
+
+// Role → style for label display
+const ROLE_STYLES: Record<string, string> = {
+  werewolf: "bg-theater-danger/15 text-theater-danger",
+  villager: "bg-theater-accent/15 text-theater-accent",
+  seer: "bg-purple-500/15 text-purple-400",
+  witch: "bg-green-500/15 text-green-400",
+  hunter: "bg-orange-500/15 text-orange-400",
+  guard: "bg-blue-500/15 text-blue-400",
+};
+
 const AVATAR_COLORS = [
   "#6366f1", "#ec4899", "#14b8a6", "#f59e0b",
   "#8b5cf6", "#ef4444", "#06b6d4", "#10b981",
@@ -75,14 +95,21 @@ export default function PlayerAvatar({
       <span className={`text-xs ${dimmed ? "text-gray-600" : "text-gray-300"} ${eliminated ? "line-through text-gray-600" : ""}`}>
         {name}
       </span>
-      {/* Word label */}
-      {!dimmed && (
+      {/* Word label (spy game) or role label (werewolf game) */}
+      {!dimmed && word && (
         <span className={`text-[10px] px-1.5 py-0.5 rounded ${
           isSpy ? "bg-theater-danger/15 text-theater-danger"
           : isBlank ? "bg-gray-500/15 text-gray-400"
           : "bg-theater-accent/15 text-theater-accent"
         }`}>
-          {word || "无词"}
+          {word}
+        </span>
+      )}
+      {!word && role && ROLE_LABELS[role] && (
+        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+          dimmed ? "bg-gray-500/10 text-gray-600" : (ROLE_STYLES[role] ?? "bg-gray-500/15 text-gray-400")
+        }`}>
+          {ROLE_LABELS[role]}
         </span>
       )}
     </div>

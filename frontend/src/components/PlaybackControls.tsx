@@ -1,5 +1,5 @@
 /**
- * F-06: Playback controls — play/pause, speed, progress.
+ * Playback controls — play/pause, speed, progress.
  */
 
 import { useTheater } from "@/components/Theater";
@@ -10,8 +10,9 @@ const SPEED_OPTIONS = [0.5, 1, 1.5, 2] as const;
 function getSceneLabel(scene: Scene): string {
   switch (scene.type) {
     case "opening": return "开场";
-    case "round-title": return `第${scene.round}轮 ${scene.phase === "speaking" ? "发言" : "投票"}`;
+    case "round-title": return `第${scene.round}轮`;
     case "speaking": return `第${scene.round}轮 发言`;
+    case "action": return `第${scene.round}轮 行动`;
     case "voting": return `第${scene.round}轮 投票`;
     case "finale": return "结局";
   }
@@ -43,7 +44,7 @@ export default function PlaybackControls() {
   const scenes = timeline?.getScenes() ?? [];
   const jumpTargets: { label: string; index: number }[] = [];
   scenes.forEach((scene, i) => {
-    if (scene.type === "round-title" && scene.phase === "speaking") {
+    if (scene.type === "round-title") {
       jumpTargets.push({ label: `第 ${scene.round} 轮`, index: i });
     }
     if (scene.type === "finale") {

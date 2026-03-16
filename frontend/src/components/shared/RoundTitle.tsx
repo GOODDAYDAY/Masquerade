@@ -7,11 +7,12 @@ import { motion } from "framer-motion";
 
 interface RoundTitleProps {
   round: number;
-  phase: "speaking" | "voting";
+  phase: string;
   onComplete?: () => void;
 }
 
 const PHASE_LABELS: Record<string, string> = {
+  "round-start": "开始",
   speaking: "发言阶段",
   voting: "投票阶段",
 };

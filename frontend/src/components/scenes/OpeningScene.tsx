@@ -7,6 +7,11 @@ import { motion } from "framer-motion";
 import type { PlayerInfo, GameInfo } from "@/types/game-script";
 import PlayerAvatar from "@/components/shared/PlayerAvatar";
 
+const GAME_TITLES: Record<string, string> = {
+  spy: "谁是卧底",
+  werewolf: "狼人杀",
+};
+
 interface OpeningSceneProps {
   players: PlayerInfo[];
   gameInfo: GameInfo;
@@ -29,8 +34,10 @@ export default function OpeningScene({ players, gameInfo, onComplete }: OpeningS
     <div className="h-full flex flex-col items-center justify-center px-6">
       <motion.div className="text-center mb-8" initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-        <h1 className="text-5xl font-bold text-white mb-2">谁是卧底</h1>
-        <p className="text-sm text-gray-500">{createdAt}</p>
+        <h1 className="text-5xl font-bold text-white mb-2">
+          {GAME_TITLES[gameInfo.type] ?? gameInfo.type}
+        </h1>
+        <p className="text-sm text-gray-500">{createdAt} · {players.length}人局</p>
       </motion.div>
 
       <motion.div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-3xl w-full"

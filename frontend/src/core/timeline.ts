@@ -1,6 +1,9 @@
 /**
  * Timeline controller — converts GameScript into a linear scene list
  * and manages playback state. Pure logic, no React dependency.
+ *
+ * Game-agnostic: builds scenes from action.type without hardcoding
+ * specific game types. New action types automatically get ActionScene.
  */
 
 import type {
@@ -18,6 +21,7 @@ export type Scene =
   | OpeningScene
   | RoundTitleScene
   | SpeakingScene
+  | ActionScene
   | VotingScene
   | FinaleScene;
 
@@ -30,11 +34,18 @@ export interface OpeningScene {
 export interface RoundTitleScene {
   type: "round-title";
   round: number;
-  phase: "speaking" | "voting";
+  phase: string;
 }
 
 export interface SpeakingScene {
   type: "speaking";
+  event: GameEvent;
+  round: number;
+  eventIndex: number;
+}
+
+export interface ActionScene {
+  type: "action";
   event: GameEvent;
   round: number;
   eventIndex: number;
@@ -59,9 +70,13 @@ const SCENE_DURATION: Record<Scene["type"], number> = {
   opening: 8000,
   "round-title": 2500,
   speaking: 6000,
+  action: 4000,
   voting: 8000,
   finale: 10000,
 };
+
+// Action types that map to SpeakingScene (have text content to display)
+const SPEECH_ACTION_TYPES = new Set(["speak", "last_words"]);
 
 // --- Build scene list from script ---
 
@@ -75,40 +90,44 @@ export function buildSceneList(script: GameScript): Scene[] {
     gameInfo: script.game,
   });
 
-  // Rounds
+  // Rounds — iterate events in original order
   for (const round of script.rounds) {
-    // Use action.type instead of phase — phase field from engine can be inaccurate
-    const speakingEvents = round.events.filter((e) => e.action.type === "speak");
-    const votingEvents = round.events.filter((e) => e.action.type === "vote");
+    // Round title at start of each round
+    scenes.push({
+      type: "round-title",
+      round: round.round_number,
+      phase: "round-start",
+    });
 
-    // Speaking phase title
-    if (speakingEvents.length > 0) {
-      scenes.push({
-        type: "round-title",
-        round: round.round_number,
-        phase: "speaking",
-      });
+    let eventIndex = 0;
+    for (const event of round.events) {
+      const actionType = event.action.type;
 
-      let eventIndex = 0;
-      for (const event of speakingEvents) {
+      if (SPEECH_ACTION_TYPES.has(actionType)) {
+        // Speech-like actions → SpeakingScene (with TTS, typewriter)
         scenes.push({
           type: "speaking",
           event,
           round: round.round_number,
           eventIndex,
         });
-        eventIndex++;
+      } else if (actionType === "vote") {
+        // Individual vote events are skipped — handled by VotingScene aggregate below
+      } else {
+        // All other actions → ActionScene (protect, wolf_discuss, wolf_kill, etc.)
+        scenes.push({
+          type: "action",
+          event,
+          round: round.round_number,
+          eventIndex,
+        });
       }
+      eventIndex++;
     }
 
-    // Voting phase
+    // Voting aggregate (if vote_result exists)
     if (round.vote_result) {
-      scenes.push({
-        type: "round-title",
-        round: round.round_number,
-        phase: "voting",
-      });
-
+      const votingEvents = round.events.filter((e) => e.action.type === "vote");
       scenes.push({
         type: "voting",
         voteResult: round.vote_result,

@@ -22,8 +22,9 @@ export interface PlayerInfo {
   model: string;
   persona: string;
   appearance: string;
-  role: string; // "spy" | "civilian"
+  role: string; // "spy" | "civilian" | "werewolf" | "villager" | etc.
   word: string;
+  extra?: Record<string, unknown>; // Game-specific data from engine
 }
 
 export interface RoundData {
@@ -34,7 +35,7 @@ export interface RoundData {
 
 export interface GameEvent {
   player_id: string;
-  phase: "speaking" | "voting";
+  phase: string;
   timestamp: string;
   thinking_duration_ms: number;
   thinking: string;

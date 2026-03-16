@@ -1,9 +1,9 @@
 /**
- * F-03: Speaking phase — speech bubble + strategy tip + audio playback.
- * Shows player avatars at top, inner monologue tip, then speech bubble.
+ * F-03: Speaking phase — strategy tip (inner monologue) plays first,
+ * then speech bubble + audio playback.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import type { GameEvent, PlayerInfo } from "@/types/game-script";
 import PlayerAvatar from "@/components/shared/PlayerAvatar";
@@ -31,13 +31,31 @@ export default function SpeakingScene({
   const strategyTip = event.strategy_tip ?? "";
   const firedRef = useRef(false);
 
-  useEffect(() => {
-    firedRef.current = false;
+  // Phase: "tip" (showing strategy tip) → "speech" (showing speech bubble)
+  const [phase, setPhase] = useState<"tip" | "speech">(strategyTip ? "tip" : "speech");
 
-    // Play audio (fire and forget)
+  // Reset phase when event changes
+  useEffect(() => {
+    setPhase(strategyTip ? "tip" : "speech");
+    firedRef.current = false;
+  }, [event.player_id, round, eventIndex, strategyTip]);
+
+  // Phase 1: Strategy tip typewriter → then transition to speech
+  useEffect(() => {
+    if (phase !== "tip" || !strategyTip) return;
+
+    const tipDurationMs = (strategyTip.length / TEXT_SPEED / speed) * 1000 + 500 / speed;
+    const timer = setTimeout(() => setPhase("speech"), tipDurationMs);
+    return () => clearTimeout(timer);
+  }, [phase, strategyTip, speed]);
+
+  // Phase 2: Speech bubble + audio → then onComplete
+  useEffect(() => {
+    if (phase !== "speech") return;
+
+    // Play audio when speech phase starts
     audioManager?.play(round, eventIndex, event.player_id);
 
-    // Calculate wait time = max(audio duration, text duration) + buffer
     const audioDurationMs = audioManager?.getDurationMs(round, eventIndex, event.player_id) ?? 0;
     const textDurationMs = (speechContent.length / TEXT_SPEED / speed) * 1000;
     const waitMs = Math.max(audioDurationMs, textDurationMs) + 800 / speed;
@@ -53,7 +71,7 @@ export default function SpeakingScene({
       clearTimeout(timer);
       audioManager?.stop();
     };
-  }, [audioManager, round, eventIndex, event.player_id, speechContent, speed, onComplete]);
+  }, [phase, audioManager, round, eventIndex, event.player_id, speechContent, speed, onComplete]);
 
   return (
     <div className="h-full flex flex-col px-6 py-4">
@@ -88,7 +106,7 @@ export default function SpeakingScene({
           <span className="text-xs text-gray-600">第{round}轮</span>
         </motion.div>
 
-        {/* Strategy tip — inner monologue bubble */}
+        {/* Strategy tip — inner monologue bubble (shows first, stays visible) */}
         {strategyTip && (
           <motion.div
             className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 max-w-md w-full mb-3"
@@ -106,13 +124,15 @@ export default function SpeakingScene({
           </motion.div>
         )}
 
-        {/* Speech bubble */}
-        <motion.div
-          className="bg-theater-surface border border-theater-border rounded-2xl px-6 py-5 max-w-xl w-full"
-          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <AnimatedText text={speechContent} speed={TEXT_SPEED} playbackSpeed={speed}
-            className="text-base text-gray-200 leading-relaxed" />
-        </motion.div>
+        {/* Speech bubble — only appears after tip finishes */}
+        {phase === "speech" && (
+          <motion.div
+            className="bg-theater-surface border border-theater-border rounded-2xl px-6 py-5 max-w-xl w-full"
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <AnimatedText text={speechContent} speed={TEXT_SPEED} playbackSpeed={speed}
+              className="text-base text-gray-200 leading-relaxed" />
+          </motion.div>
+        )}
       </div>
     </div>
   );
