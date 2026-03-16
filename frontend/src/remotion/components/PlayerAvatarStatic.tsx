@@ -36,7 +36,7 @@ const ROLE_STYLES: Record<string, { bg: string; text: string }> = {
 };
 
 export default function PlayerAvatarStatic({
-  name, playerId, size = 120, dimmed = false, eliminated = false, word, role,
+  name, playerId, size = 156, dimmed = false, eliminated = false, word, role,
 }: PlayerAvatarStaticProps) {
   const color = getPlayerColor(playerId);
   const initial = name.charAt(0);
@@ -44,7 +44,7 @@ export default function PlayerAvatarStatic({
   const isBlank = role === "blank";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
       {/* Avatar circle */}
       <div
         style={{
@@ -66,27 +66,27 @@ export default function PlayerAvatarStatic({
         {/* Eliminated X marks */}
         {eliminated && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ position: "absolute", width: "100%", height: 3, backgroundColor: "#ef4444", transform: "rotate(45deg)" }} />
-            <div style={{ position: "absolute", width: "100%", height: 3, backgroundColor: "#ef4444", transform: "rotate(-45deg)" }} />
+            <div style={{ position: "absolute", width: "100%", height: 4, backgroundColor: "#ef4444", transform: "rotate(45deg)" }} />
+            <div style={{ position: "absolute", width: "100%", height: 4, backgroundColor: "#ef4444", transform: "rotate(-45deg)" }} />
           </div>
         )}
         {/* Role badge */}
         {isSpy && !dimmed && (
           <span style={{
-            position: "absolute", top: -8, right: -8,
+            position: "absolute", top: -10, right: -10,
             backgroundColor: "#ef4444", color: "white",
-            fontSize: 14, fontWeight: "bold",
-            padding: "0 8px", borderRadius: 9999, lineHeight: "24px",
+            fontSize: 18, fontWeight: "bold",
+            padding: "0 10px", borderRadius: 9999, lineHeight: "31px",
           }}>
             卧底
           </span>
         )}
         {isBlank && !dimmed && (
           <span style={{
-            position: "absolute", top: -8, right: -8,
+            position: "absolute", top: -10, right: -10,
             backgroundColor: "#6b7280", color: "white",
-            fontSize: 14, fontWeight: "bold",
-            padding: "0 8px", borderRadius: 9999, lineHeight: "24px",
+            fontSize: 18, fontWeight: "bold",
+            padding: "0 10px", borderRadius: 9999, lineHeight: "31px",
           }}>
             白板
           </span>
@@ -94,7 +94,7 @@ export default function PlayerAvatarStatic({
       </div>
       {/* Name */}
       <span style={{
-        fontSize: 20,
+        fontSize: 26,
         color: dimmed ? "#4b5563" : "#d1d5db",
         textDecoration: eliminated ? "line-through" : "none",
       }}>
@@ -103,9 +103,9 @@ export default function PlayerAvatarStatic({
       {/* Word label (spy game) */}
       {!dimmed && word && (
         <span style={{
-          fontSize: 18,
-          padding: "4px 12px",
-          borderRadius: 7,
+          fontSize: 23,
+          padding: "5px 16px",
+          borderRadius: 9,
           backgroundColor: isSpy ? "rgba(239,68,68,0.15)" : isBlank ? "rgba(107,114,128,0.15)" : "rgba(99,102,241,0.15)",
           color: isSpy ? "#ef4444" : isBlank ? "#9ca3af" : "#6366f1",
         }}>
@@ -115,9 +115,9 @@ export default function PlayerAvatarStatic({
       {/* Role label (werewolf game) */}
       {!word && role && ROLE_LABELS[role] && (
         <span style={{
-          fontSize: 18,
-          padding: "4px 12px",
-          borderRadius: 7,
+          fontSize: 23,
+          padding: "5px 16px",
+          borderRadius: 9,
           backgroundColor: dimmed ? "rgba(107,114,128,0.1)" : (ROLE_STYLES[role]?.bg ?? "rgba(107,114,128,0.15)"),
           color: dimmed ? "#4b5563" : (ROLE_STYLES[role]?.text ?? "#9ca3af"),
         }}>

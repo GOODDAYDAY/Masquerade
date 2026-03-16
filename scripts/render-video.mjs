@@ -105,41 +105,50 @@ console.log(`Composition: ${composition.durationInFrames} frames @ ${composition
 console.log(`Resolution:  ${composition.width}x${composition.height}`);
 console.log("");
 
-// --- Detect GPU encoder ---
+// --- Detect system ffmpeg with GPU encoder ---
+// Remotion's built-in ffmpeg has no hardware encoders.
+// Strategy: use Remotion's built-in ffmpeg for rendering (it handles piping, audio mixing, etc.),
+// then re-encode the output with system ffmpeg + NVENC as a fast post-process step.
 
-function detectGpuEncoder() {
-  // Probe ffmpeg for available hardware encoders: NVENC (NVIDIA), AMF (AMD), QSV (Intel)
+function detectGpuEncoding() {
+  let ffmpegPath;
+  try {
+    ffmpegPath = execSync("where ffmpeg", {
+      encoding: "utf-8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"],
+    }).trim().split("\n")[0].trim();
+  } catch {
+    return null;
+  }
+  if (!ffmpegPath || !fs.existsSync(ffmpegPath)) return null;
+
   const candidates = ["h264_nvenc", "h264_amf", "h264_qsv"];
   let encoders;
   try {
-    encoders = execSync("ffmpeg -encoders -hide_banner", {
+    encoders = execSync(`"${ffmpegPath}" -encoders -hide_banner`, {
       encoding: "utf-8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"],
     });
   } catch (e) {
-    // ffmpeg writes to stderr sometimes, check stdout from error
     encoders = e.stdout || "";
   }
+
   for (const enc of candidates) {
     if (encoders.includes(enc)) {
-      // Verify it actually works (driver might be missing)
       try {
-        execSync(`ffmpeg -f lavfi -i color=black:s=256x256:d=0.1:r=30 -c:v ${enc} -f null -`, {
+        execSync(`"${ffmpegPath}" -f lavfi -i color=black:s=256x256:d=0.1:r=30 -c:v ${enc} -f null -`, {
           timeout: 10000, stdio: ["pipe", "pipe", "pipe"],
         });
-        return enc;
-      } catch {
-        // Encoder listed but not functional, try next
-      }
+        return { ffmpegPath, encoder: enc };
+      } catch { /* not functional */ }
     }
   }
   return null;
 }
 
-const gpuEncoder = detectGpuEncoder();
-if (gpuEncoder) {
-  console.log(`GPU encoder: ${gpuEncoder}`);
+const gpu = detectGpuEncoding();
+if (gpu) {
+  console.log(`GPU encoder: ${gpu.encoder} (post-process re-encode)`);
 } else {
-  console.log("GPU encoder: none (using CPU libx264)");
+  console.log("GPU encoder: none (CPU only)");
 }
 console.log("");
 
@@ -149,39 +158,17 @@ console.log("Rendering video...");
 const renderStart = Date.now();
 let lastProgress = 0;
 
+// If GPU available, render to temp file first, then re-encode with NVENC
+const renderTarget = gpu ? outputFile.replace(".mp4", "_cpu.mp4") : outputFile;
+
 await renderMedia({
   composition,
   serveUrl: bundleLocation,
   codec: "h264",
-  outputLocation: outputFile,
+  outputLocation: renderTarget,
   inputProps: { scriptFile },
   crf: 16,
   chromiumOptions,
-  // GPU-accelerated encoding if available, otherwise fall back to CPU
-  ffmpegOverride: ({ args }) => {
-    if (gpuEncoder) {
-      const idx = args.indexOf("libx264");
-      if (idx !== -1) {
-        args[idx] = gpuEncoder;
-        if (gpuEncoder === "h264_nvenc") {
-          // NVENC uses -cq instead of -crf
-          const crfIdx = args.indexOf("-crf");
-          if (crfIdx !== -1) args[crfIdx] = "-cq";
-          args.push("-preset", "p4", "-tune", "hq");
-        } else if (gpuEncoder === "h264_amf") {
-          // AMD AMF uses -quality instead of -crf
-          const crfIdx = args.indexOf("-crf");
-          if (crfIdx !== -1) { args.splice(crfIdx, 2); }
-          args.push("-quality", "quality", "-rc", "cqp", "-qp_i", "16", "-qp_p", "16");
-        } else if (gpuEncoder === "h264_qsv") {
-          // Intel QSV uses -global_quality
-          const crfIdx = args.indexOf("-crf");
-          if (crfIdx !== -1) { args[crfIdx] = "-global_quality"; }
-        }
-      }
-    }
-    return args;
-  },
   onProgress: ({ progress }) => {
     const pct = Math.round(progress * 100);
     if (pct >= lastProgress + 5) {
@@ -193,11 +180,41 @@ await renderMedia({
 });
 
 const renderTime = ((Date.now() - renderStart) / 1000).toFixed(1);
+
+// GPU post-process: re-encode video track with NVENC, copy audio
+if (gpu) {
+  console.log("");
+  console.log(`Re-encoding with ${gpu.encoder}...`);
+  const reencodeStart = Date.now();
+  try {
+    const nvencArgs = gpu.encoder === "h264_nvenc"
+      ? "-c:v h264_nvenc -preset p4 -tune hq -cq 16"
+      : gpu.encoder === "h264_amf"
+      ? "-c:v h264_amf -quality quality -rc cqp -qp_i 16 -qp_p 16"
+      : `-c:v ${gpu.encoder} -global_quality 16`;
+
+    execSync(
+      `"${gpu.ffmpegPath}" -y -i "${renderTarget}" ${nvencArgs} -c:a copy "${outputFile}"`,
+      { stdio: ["pipe", "pipe", "pipe"], timeout: 600000 },
+    );
+    const reencodeTime = ((Date.now() - reencodeStart) / 1000).toFixed(1);
+    console.log(`Re-encode complete (${reencodeTime}s)`);
+    // Clean up temp file
+    fs.unlinkSync(renderTarget);
+  } catch (e) {
+    console.warn(`GPU re-encode failed, keeping CPU output: ${e.message}`);
+    // Fall back to CPU output
+    if (fs.existsSync(renderTarget)) {
+      fs.renameSync(renderTarget, outputFile);
+    }
+  }
+}
+
 const fileSize = (fs.statSync(outputFile).size / 1024 / 1024).toFixed(1);
 
 console.log("");
 console.log("========================================");
-console.log(`  Done! ${renderTime}s`);
+console.log(`  Done! ${renderTime}s render` + (gpu ? ` + GPU re-encode` : ""));
 console.log(`  ${outputFile}`);
 console.log(`  ${fileSize} MB`);
 console.log("========================================");

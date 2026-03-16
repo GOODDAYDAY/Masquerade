@@ -40,25 +40,25 @@ export default function OpeningScene({ data, durationInFrames }: OpeningScenePro
     <FadeTransition durationInFrames={durationInFrames}>
       <div style={{
         height: "100%", display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", padding: "0 44px",
+        alignItems: "center", justifyContent: "center", padding: "0 57px",
       }}>
         {/* Title */}
         <div style={{
-          textAlign: "center", marginBottom: 58,
+          textAlign: "center", marginBottom: 75,
           opacity: titleOpacity, transform: `scale(${titleScale})`,
         }}>
-          <h1 style={{ fontSize: 88, fontWeight: "bold", color: "white", marginBottom: 16 }}>
+          <h1 style={{ fontSize: 114, fontWeight: "bold", color: "white", marginBottom: 21 }}>
             {GAME_TITLES[gameInfo.type] ?? gameInfo.type}
           </h1>
-          <p style={{ fontSize: 24, color: "#6b7280" }}>
+          <p style={{ fontSize: 31, color: "#6b7280" }}>
             {createdAt} · {players.length}人局
           </p>
         </div>
 
         {/* Player cards grid */}
         <div style={{
-          display: "flex", flexWrap: "wrap", gap: 30,
-          justifyContent: "center", maxWidth: 1300,
+          display: "flex", flexWrap: "wrap", gap: 39,
+          justifyContent: "center", maxWidth: 1690,
         }}>
           {players.map((player, i) => {
             // Each card fades in 9 frames apart (300ms at 30fps)
@@ -72,7 +72,7 @@ export default function OpeningScene({ data, durationInFrames }: OpeningScenePro
             const cardY = interpolate(
               frame,
               [cardStartFrame, cardStartFrame + 12],
-              [20, 0],
+              [26, 0],
               { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
             );
 
@@ -84,21 +84,21 @@ export default function OpeningScene({ data, durationInFrames }: OpeningScenePro
                   transform: `translateY(${cardY}px)`,
                   backgroundColor: "#14141f",
                   border: "1px solid #2a2a3a",
-                  borderRadius: 19, padding: 30,
+                  borderRadius: 25, padding: 39,
                   display: "flex", flexDirection: "column",
                   alignItems: "center", textAlign: "center",
-                  width: 260,
+                  width: 338,
                 }}
               >
                 <PlayerAvatarStatic
                   name={player.name}
                   playerId={player.id}
-                  size={100}
+                  size={130}
                   word={player.word}
                   role={player.role}
                 />
                 <p style={{
-                  fontSize: 20, color: "#6b7280", marginTop: 16,
+                  fontSize: 26, color: "#6b7280", marginTop: 21,
                   overflow: "hidden", display: "-webkit-box",
                   WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
                 }}>
@@ -110,7 +110,7 @@ export default function OpeningScene({ data, durationInFrames }: OpeningScenePro
         </div>
 
         {/* "Game starting" text */}
-        <p style={{ color: "#4b5563", fontSize: 24, marginTop: 44, opacity: startingOpacity }}>
+        <p style={{ color: "#4b5563", fontSize: 31, marginTop: 57, opacity: startingOpacity }}>
           游戏即将开始...
         </p>
       </div>

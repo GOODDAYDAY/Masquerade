@@ -33,7 +33,7 @@ export default function ActionHistoryPanel({ events, players }: ActionHistoryPan
   if (events.length === 0) {
     return (
       <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 22, color: "#4b5563" }}>暂无行动</span>
+        <span style={{ fontSize: 29, color: "#4b5563" }}>暂无行动</span>
       </div>
     );
   }
@@ -43,7 +43,7 @@ export default function ActionHistoryPanel({ events, players }: ActionHistoryPan
   let lastRound = -1;
 
   return (
-    <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ padding: "21px 29px", display: "flex", flexDirection: "column", gap: 16 }}>
       {visibleEvents.map((item, idx) => {
         const showRoundHeader = item.round !== lastRound;
         lastRound = item.round;
@@ -73,23 +73,23 @@ export default function ActionHistoryPanel({ events, players }: ActionHistoryPan
         return (
           <div key={idx}>
             {showRoundHeader && (
-              <div style={{ fontSize: 20, color: "#4b5563", fontWeight: "bold", textAlign: "center", marginTop: idx > 0 ? 16 : 0, marginBottom: 8 }}>
+              <div style={{ fontSize: 26, color: "#4b5563", fontWeight: "bold", textAlign: "center", marginTop: idx > 0 ? 21 : 0, marginBottom: 10 }}>
                 — 第 {item.round} 轮 —
               </div>
             )}
             <div style={{
-              borderRadius: 12, padding: "16px 22px",
+              borderRadius: 16, padding: "21px 29px",
               backgroundColor: isCurrent ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
               border: isCurrent ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 26 }}>{display.icon}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <span style={{ fontSize: 34 }}>{display.icon}</span>
                 {playerName && (
-                  <span style={{ fontSize: 22, fontWeight: 500, color: isCurrent ? "white" : "#9ca3af" }}>
+                  <span style={{ fontSize: 29, fontWeight: 500, color: isCurrent ? "white" : "#9ca3af" }}>
                     {playerName}
                   </span>
                 )}
-                <span style={{ fontSize: 22, color: isCurrent ? "#d1d5db" : "#6b7280" }}>
+                <span style={{ fontSize: 29, color: isCurrent ? "#d1d5db" : "#6b7280" }}>
                   {mainText}
                 </span>
               </div>

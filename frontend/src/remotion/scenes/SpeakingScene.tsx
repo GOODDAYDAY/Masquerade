@@ -38,17 +38,17 @@ export default function SpeakingScene({
     ? interpolate(frame, [tipEndFrame, tipEndFrame + 9], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
     : interpolate(frame, [0, 9], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const speechY = strategyTip
-    ? interpolate(frame, [tipEndFrame, tipEndFrame + 9], [8, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
-    : interpolate(frame, [0, 9], [8, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    ? interpolate(frame, [tipEndFrame, tipEndFrame + 9], [10, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
+    : interpolate(frame, [0, 9], [10, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   // Tip bubble fade-in
   const tipOpacity = interpolate(frame, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
     <FadeTransition durationInFrames={durationInFrames}>
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "30px 44px" }}>
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "39px 57px" }}>
         {/* Avatar row */}
-        <div style={{ display: "flex", gap: 22, justifyContent: "center", marginBottom: 22, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 29, justifyContent: "center", marginBottom: 29, flexWrap: "wrap" }}>
           {players.map((p) => {
             const isActive = p.id === event.player_id;
             const isOut = eliminatedIds.includes(p.id);
@@ -57,7 +57,7 @@ export default function SpeakingScene({
                 <PlayerAvatarStatic
                   name={p.name}
                   playerId={p.id}
-                  size={isActive ? 120 : 100}
+                  size={isActive ? 156 : 130}
                   dimmed={!isActive}
                   eliminated={isOut}
                   word={p.word}
@@ -71,10 +71,10 @@ export default function SpeakingScene({
         {/* Speech content area */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           {/* Speaker header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 22, opacity: interpolate(frame, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>
-            <span style={{ fontSize: 32, fontWeight: "bold", color: "white" }}>{currentPlayer?.name}</span>
-            <ExpressionIcon expression={event.expression} size={32} />
-            <span style={{ fontSize: 20, color: "#4b5563" }}>第{round}轮</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 21, marginBottom: 29, opacity: interpolate(frame, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>
+            <span style={{ fontSize: 42, fontWeight: "bold", color: "white" }}>{currentPlayer?.name}</span>
+            <ExpressionIcon expression={event.expression} size={42} />
+            <span style={{ fontSize: 26, color: "#4b5563" }}>第{round}轮</span>
           </div>
 
           {/* Strategy tip bubble */}
@@ -83,15 +83,15 @@ export default function SpeakingScene({
               opacity: tipOpacity,
               backgroundColor: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 19, padding: "16px 30px",
-              maxWidth: 800, width: "100%", marginBottom: 22,
+              borderRadius: 25, padding: "21px 39px",
+              maxWidth: 1040, width: "100%", marginBottom: 29,
             }}>
-              <span style={{ fontSize: 20, color: "#6b7280", marginRight: 8 }}>💭</span>
+              <span style={{ fontSize: 26, color: "#6b7280", marginRight: 10 }}>💭</span>
               <AnimatedText
                 text={strategyTip}
                 startFrame={0}
                 charsPerSecond={15}
-                style={{ fontSize: 28, color: "#9ca3af", fontStyle: "italic", lineHeight: 1.5, display: "inline" }}
+                style={{ fontSize: 44, color: "#9ca3af", fontStyle: "italic", lineHeight: 1.5, display: "inline" }}
                 showCursor={isTipPhase as boolean}
               />
             </div>
@@ -104,14 +104,14 @@ export default function SpeakingScene({
               transform: `translateY(${speechY}px)`,
               backgroundColor: "#14141f",
               border: "1px solid #2a2a3a",
-              borderRadius: 24, padding: "34px 44px",
-              maxWidth: 1000, width: "100%",
+              borderRadius: 31, padding: "44px 57px",
+              maxWidth: 1300, width: "100%",
             }}>
               <AnimatedText
                 text={speechContent}
                 startFrame={tipEndFrame}
                 charsPerSecond={15}
-                style={{ fontSize: 34, color: "#e5e7eb", lineHeight: 1.5 }}
+                style={{ fontSize: 50, color: "#e5e7eb", lineHeight: 1.5 }}
               />
             </div>
           )}

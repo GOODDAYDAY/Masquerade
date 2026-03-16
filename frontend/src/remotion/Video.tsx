@@ -21,6 +21,8 @@ export interface VideoProps {
   script: GameScript;
   scenes: SceneFrameRange[];
   gameId: string;
+  /** Show right-side speech history panel (default false) */
+  showSpeechHistory?: boolean;
 }
 
 /** Compute eliminated player IDs up to a given absolute frame */
@@ -89,11 +91,11 @@ const GAME_LABELS: Record<string, string> = {
   werewolf: "狼人杀",
 };
 
-export default function Video({ script, scenes }: VideoProps) {
+export default function Video({ script, scenes, showSpeechHistory = false }: VideoProps) {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const eliminatedIds = getEliminatedIds(scenes, frame);
-  const speechHistory = getSpeechHistory(scenes, frame);
+  const speechHistory = showSpeechHistory ? getSpeechHistory(scenes, frame) : [];
   const actionHistory = getActionHistory(scenes, frame);
 
   // Gather audio sequences for speaking scenes
@@ -127,17 +129,17 @@ export default function Video({ script, scenes }: VideoProps) {
         {renderHeader(script)}
       </div>
 
-      {/* Main row: left panel | scene | right panel */}
+      {/* Main row: left panel | scene | (optional) right panel */}
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Left panel — action history */}
         <aside style={{
-          width: 440, flexShrink: 0,
+          width: 520, flexShrink: 0,
           borderRight: "1px solid #2a2a3a",
           backgroundColor: "rgba(10,10,15,0.9)",
           display: "flex", flexDirection: "column",
         }}>
-          <div style={{ padding: "12px 22px", borderBottom: "1px solid #2a2a3a" }}>
-            <span style={{ fontSize: 24, color: "#6b7280", fontWeight: "bold" }}>🎬 行动记录</span>
+          <div style={{ padding: "14px 24px", borderBottom: "1px solid #2a2a3a" }}>
+            <span style={{ fontSize: 28, color: "#6b7280", fontWeight: "bold" }}>🎬 行动记录</span>
           </div>
           <div style={{ flex: 1, overflow: "hidden" }}>
             <ActionHistoryPanel events={actionHistory} players={script.players} />
@@ -155,20 +157,22 @@ export default function Video({ script, scenes }: VideoProps) {
           ))}
         </main>
 
-        {/* Right panel — speech history */}
-        <aside style={{
-          width: 440, flexShrink: 0,
-          borderLeft: "1px solid #2a2a3a",
-          backgroundColor: "rgba(10,10,15,0.9)",
-          display: "flex", flexDirection: "column",
-        }}>
-          <div style={{ padding: "12px 22px", borderBottom: "1px solid #2a2a3a" }}>
-            <span style={{ fontSize: 24, color: "#6b7280", fontWeight: "bold" }}>💬 发言记录</span>
-          </div>
-          <div style={{ flex: 1, overflow: "hidden" }}>
-            <SpeechHistoryPanel events={speechHistory} players={script.players} />
-          </div>
-        </aside>
+        {/* Right panel — speech history (configurable) */}
+        {showSpeechHistory && (
+          <aside style={{
+            width: 520, flexShrink: 0,
+            borderLeft: "1px solid #2a2a3a",
+            backgroundColor: "rgba(10,10,15,0.9)",
+            display: "flex", flexDirection: "column",
+          }}>
+            <div style={{ padding: "14px 24px", borderBottom: "1px solid #2a2a3a" }}>
+              <span style={{ fontSize: 28, color: "#6b7280", fontWeight: "bold" }}>💬 发言记录</span>
+            </div>
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              <SpeechHistoryPanel events={speechHistory} players={script.players} />
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* Audio sequences — placed at absolute frame positions */}

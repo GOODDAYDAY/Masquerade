@@ -65,8 +65,8 @@ export default function ActionScene({
     ? interpolate(frame, [tipEndFrame, tipEndFrame + 9], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
     : interpolate(frame, [0, 9], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const contentY = strategyTip
-    ? interpolate(frame, [tipEndFrame, tipEndFrame + 9], [8, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
-    : interpolate(frame, [0, 9], [8, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    ? interpolate(frame, [tipEndFrame, tipEndFrame + 9], [10, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
+    : interpolate(frame, [0, 9], [10, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   const getName = (id: string) => players.find((p) => p.id === id)?.name ?? id;
 
@@ -76,9 +76,9 @@ export default function ActionScene({
 
   return (
     <FadeTransition durationInFrames={durationInFrames}>
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "30px 44px", backgroundColor: nightBg }}>
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "39px 57px", backgroundColor: nightBg }}>
         {/* Avatar row */}
-        <div style={{ display: "flex", gap: 22, justifyContent: "center", marginBottom: 22, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 29, justifyContent: "center", marginBottom: 29, flexWrap: "wrap" }}>
           {players.map((p) => {
             const isActive = p.id === event.player_id;
             const isOut = eliminatedIds.includes(p.id);
@@ -86,7 +86,7 @@ export default function ActionScene({
               <div key={p.id} style={{ transform: isActive ? "scale(1.1)" : "scale(1)" }}>
                 <PlayerAvatarStatic
                   name={p.name} playerId={p.id}
-                  size={isActive ? 120 : 100}
+                  size={isActive ? 156 : 130}
                   dimmed={!isActive} eliminated={isOut}
                   word={p.word} role={p.role}
                 />
@@ -99,13 +99,13 @@ export default function ActionScene({
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           {/* Player name + action label */}
           <div style={{
-            display: "flex", alignItems: "center", gap: 16, marginBottom: 22,
+            display: "flex", alignItems: "center", gap: 21, marginBottom: 29,
             opacity: interpolate(frame, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
           }}>
-            {isNight && <span style={{ fontSize: 32 }}>🌙</span>}
-            <span style={{ fontSize: 32, fontWeight: "bold", color: "white" }}>{currentPlayer?.name}</span>
-            <span style={{ fontSize: 24, color: "#9ca3af" }}>{label}</span>
-            <span style={{ fontSize: 20, color: "#4b5563" }}>第{round}轮</span>
+            {isNight && <span style={{ fontSize: 42 }}>🌙</span>}
+            <span style={{ fontSize: 42, fontWeight: "bold", color: "white" }}>{currentPlayer?.name}</span>
+            <span style={{ fontSize: 31, color: "#9ca3af" }}>{label}</span>
+            <span style={{ fontSize: 26, color: "#4b5563" }}>第{round}轮</span>
           </div>
 
           {/* Strategy tip */}
@@ -114,13 +114,13 @@ export default function ActionScene({
               opacity: tipOpacity,
               backgroundColor: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 19, padding: "16px 30px",
-              maxWidth: 800, width: "100%", marginBottom: 22,
+              borderRadius: 25, padding: "21px 39px",
+              maxWidth: 1040, width: "100%", marginBottom: 29,
             }}>
-              <span style={{ fontSize: 20, color: "#6b7280", marginRight: 8 }}>💭</span>
+              <span style={{ fontSize: 26, color: "#6b7280", marginRight: 10 }}>💭</span>
               <AnimatedText
                 text={strategyTip} startFrame={0} charsPerSecond={15}
-                style={{ fontSize: 28, color: "#9ca3af", fontStyle: "italic", lineHeight: 1.5, display: "inline" }}
+                style={{ fontSize: 44, color: "#9ca3af", fontStyle: "italic", lineHeight: 1.5, display: "inline" }}
                 showCursor={isTipPhase as boolean}
               />
             </div>
@@ -134,70 +134,70 @@ export default function ActionScene({
                 transform: `translateY(${contentY}px)`,
                 backgroundColor: cardBg,
                 border: `1px solid ${cardBorder}`,
-                borderRadius: 24, padding: "34px 44px",
-                maxWidth: 1000, width: "100%",
+                borderRadius: 31, padding: "44px 57px",
+                maxWidth: 1300, width: "100%",
               }}>
                 <AnimatedText
                   text={textContent}
                   startFrame={tipEndFrame}
                   charsPerSecond={15}
-                  style={{ fontSize: 34, color: isNight ? "#d1d5db" : "#e5e7eb", lineHeight: 1.5, fontStyle: isNight ? "italic" : "normal" }}
+                  style={{ fontSize: 50, color: isNight ? "#d1d5db" : "#e5e7eb", lineHeight: 1.5, fontStyle: isNight ? "italic" : "normal" }}
                 />
               </div>
             ) : (
               <div style={{
                 opacity: contentOpacity,
                 transform: `translateY(${contentY}px)`,
-                maxWidth: 700, width: "100%",
-                display: "flex", flexDirection: "column", gap: 16,
+                maxWidth: 910, width: "100%",
+                display: "flex", flexDirection: "column", gap: 21,
               }}>
                 {/* Target card */}
                 {targetPlayer && (
                   <div style={{
-                    display: "flex", alignItems: "center", gap: 18,
+                    display: "flex", alignItems: "center", gap: 23,
                     backgroundColor: cardBg, border: `1px solid ${cardBorder}`,
-                    borderRadius: 12, padding: "22px 30px",
+                    borderRadius: 16, padding: "29px 39px",
                   }}>
-                    <span style={{ fontSize: 24, color: "#d1d5db", flex: 1 }}>{getName(event.player_id)}</span>
-                    <span style={{ fontSize: 20, color: "#4b5563" }}>→</span>
-                    <span style={{ fontSize: 24, color: "#6366f1", fontWeight: 500 }}>{targetPlayer.name}</span>
+                    <span style={{ fontSize: 31, color: "#d1d5db", flex: 1 }}>{getName(event.player_id)}</span>
+                    <span style={{ fontSize: 26, color: "#4b5563" }}>→</span>
+                    <span style={{ fontSize: 31, color: "#6366f1", fontWeight: 500 }}>{targetPlayer.name}</span>
                   </div>
                 )}
                 {/* Witch action */}
                 {witchUse && (
                   <div style={{
-                    display: "flex", alignItems: "center", gap: 18,
+                    display: "flex", alignItems: "center", gap: 23,
                     backgroundColor: cardBg, border: `1px solid ${cardBorder}`,
-                    borderRadius: 12, padding: "22px 30px",
+                    borderRadius: 16, padding: "29px 39px",
                   }}>
-                    <span style={{ fontSize: 24, color: "#d1d5db", flex: 1 }}>{getName(event.player_id)}</span>
-                    <span style={{ fontSize: 20, color: "#4b5563" }}>→</span>
+                    <span style={{ fontSize: 31, color: "#d1d5db", flex: 1 }}>{getName(event.player_id)}</span>
+                    <span style={{ fontSize: 26, color: "#4b5563" }}>→</span>
                     <span style={{
-                      fontSize: 24, fontWeight: 500,
+                      fontSize: 31, fontWeight: 500,
                       color: witchUse === "antidote" ? "#4ade80" : witchUse === "poison" ? "#ef4444" : "#9ca3af",
                     }}>
                       {WITCH_USE_LABELS[witchUse] ?? witchUse}
                     </span>
                     {witchUse === "poison" && targetPlayer && (
-                      <span style={{ fontSize: 24, color: "#ef4444" }}>({targetPlayer.name})</span>
+                      <span style={{ fontSize: 31, color: "#ef4444" }}>({targetPlayer.name})</span>
                     )}
                   </div>
                 )}
                 {/* Death announce */}
                 {deathNames && (
                   <div style={{
-                    display: "flex", alignItems: "center", gap: 18,
+                    display: "flex", alignItems: "center", gap: 23,
                     backgroundColor: cardBg, border: `1px solid ${cardBorder}`,
-                    borderRadius: 12, padding: "22px 30px",
+                    borderRadius: 16, padding: "29px 39px",
                   }}>
-                    <span style={{ fontSize: 24, color: "#ef4444", fontWeight: 500 }}>
+                    <span style={{ fontSize: 31, color: "#ef4444", fontWeight: 500 }}>
                       {deathNames.split(",").map((n: string) => n.trim()).join("、")} 死亡
                     </span>
                   </div>
                 )}
                 {/* Fallback */}
                 {!targetPlayer && !witchUse && !deathNames && (
-                  <div style={{ fontSize: 24, color: "#6b7280", textAlign: "center" }}>（无详细信息）</div>
+                  <div style={{ fontSize: 31, color: "#6b7280", textAlign: "center" }}>（无详细信息）</div>
                 )}
               </div>
             )

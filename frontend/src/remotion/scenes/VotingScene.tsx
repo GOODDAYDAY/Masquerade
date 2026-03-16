@@ -59,23 +59,23 @@ export default function VotingScene({
 
   return (
     <FadeTransition durationInFrames={durationInFrames}>
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 44px" }}>
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 57px" }}>
         {/* Player row with vote count badges */}
-        <div style={{ display: "flex", gap: 34, marginBottom: 58, flexWrap: "wrap", justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: 44, marginBottom: 75, flexWrap: "wrap", justifyContent: "center" }}>
           {players.map((p) => {
             const isOut = previouslyEliminated.includes(p.id) || (showResult && voteResult.eliminated === p.id);
             const votes = tally[p.id] ?? 0;
             return (
-              <div key={p.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <div key={p.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
                 <PlayerAvatarStatic
-                  name={p.name} playerId={p.id} size={80}
+                  name={p.name} playerId={p.id} size={104}
                   eliminated={isOut} word={p.word} role={p.role}
                 />
                 {votes > 0 && (
                   <span style={{
                     backgroundColor: "#6366f1", color: "white",
-                    fontSize: 20, fontWeight: "bold",
-                    padding: "4px 16px", borderRadius: 9999,
+                    fontSize: 26, fontWeight: "bold",
+                    padding: "5px 21px", borderRadius: 9999,
                   }}>
                     {votes} 票
                   </span>
@@ -86,7 +86,7 @@ export default function VotingScene({
         </div>
 
         {/* Vote list */}
-        <div style={{ maxWidth: 700, width: "100%", display: "flex", flexDirection: "column", gap: 16, marginBottom: 44 }}>
+        <div style={{ maxWidth: 910, width: "100%", display: "flex", flexDirection: "column", gap: 21, marginBottom: 57 }}>
           {revealedVoters.map((voter, i) => {
             const entryFrame = i * voteIntervalFrames;
             const entryOpacity = interpolate(
@@ -94,20 +94,20 @@ export default function VotingScene({
               { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
             );
             const entryX = interpolate(
-              frame, [entryFrame, entryFrame + 9], [-15, 0],
+              frame, [entryFrame, entryFrame + 9], [-20, 0],
               { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
             );
             return (
               <div key={voter} style={{
                 opacity: entryOpacity,
                 transform: `translateX(${entryX}px)`,
-                display: "flex", alignItems: "center", gap: 18,
+                display: "flex", alignItems: "center", gap: 23,
                 backgroundColor: "#14141f", border: "1px solid #2a2a3a",
-                borderRadius: 12, padding: "16px 22px",
+                borderRadius: 16, padding: "21px 29px",
               }}>
-                <span style={{ fontSize: 24, color: "#d1d5db", flex: 1 }}>{getName(voter)}</span>
-                <span style={{ fontSize: 20, color: "#4b5563" }}>→</span>
-                <span style={{ fontSize: 24, color: "#6366f1", fontWeight: 500 }}>{getName(voteResult.votes[voter]!)}</span>
+                <span style={{ fontSize: 31, color: "#d1d5db", flex: 1 }}>{getName(voter)}</span>
+                <span style={{ fontSize: 26, color: "#4b5563" }}>→</span>
+                <span style={{ fontSize: 31, color: "#6366f1", fontWeight: 500 }}>{getName(voteResult.votes[voter]!)}</span>
               </div>
             );
           })}
@@ -116,7 +116,7 @@ export default function VotingScene({
         {/* Voting in progress indicator */}
         {revealedCount < voterOrder.length && (
           <p style={{
-            fontSize: 24, color: "#4b5563",
+            fontSize: 31, color: "#4b5563",
             opacity: interpolate(frame % 45, [0, 15, 30, 45], [0.3, 1, 0.3, 0.3]),
           }}>
             投票中...
@@ -126,16 +126,16 @@ export default function VotingScene({
         {/* Result */}
         {showResult && (
           <div style={{
-            textAlign: "center", marginTop: 16,
+            textAlign: "center", marginTop: 21,
             opacity: resultOpacity,
             transform: `scale(${resultScale})`,
           }}>
             {voteResult.eliminated ? (
-              <p style={{ fontSize: 44, fontWeight: "bold", color: "#ef4444" }}>
+              <p style={{ fontSize: 57, fontWeight: "bold", color: "#ef4444" }}>
                 {getName(voteResult.eliminated)} 被淘汰
               </p>
             ) : (
-              <p style={{ fontSize: 44, fontWeight: "bold", color: "#f59e0b" }}>
+              <p style={{ fontSize: 57, fontWeight: "bold", color: "#f59e0b" }}>
                 平票 — 无人淘汰
               </p>
             )}

@@ -60,11 +60,11 @@ export default function FinaleScene({ data, durationInFrames }: FinaleSceneProps
 
   return (
     <FadeTransition durationInFrames={durationInFrames}>
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 44px" }}>
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 57px" }}>
         {/* Title */}
         <h1 style={{
-          fontSize: 88, fontWeight: "bold", color: "white",
-          marginBottom: 58,
+          fontSize: 114, fontWeight: "bold", color: "white",
+          marginBottom: 75,
           opacity: titleOpacity,
           transform: `scale(${titleScale})`,
         }}>
@@ -73,7 +73,7 @@ export default function FinaleScene({ data, durationInFrames }: FinaleSceneProps
 
         {/* Player cards */}
         <div style={{
-          display: "flex", gap: 34, justifyContent: "center", marginBottom: 58,
+          display: "flex", gap: 44, justifyContent: "center", marginBottom: 75,
           flexWrap: "wrap", opacity: playersOpacity,
         }}>
           {players.map((p) => {
@@ -85,7 +85,7 @@ export default function FinaleScene({ data, durationInFrames }: FinaleSceneProps
             return (
               <div key={p.id} style={{ transform: `scale(${winnerPulse})` }}>
                 <PlayerAvatarStatic
-                  name={p.name} playerId={p.id} size={100}
+                  name={p.name} playerId={p.id} size={130}
                   eliminated={result.eliminated_order.includes(p.id)}
                   word={p.word} role={p.role}
                 />
@@ -96,9 +96,9 @@ export default function FinaleScene({ data, durationInFrames }: FinaleSceneProps
 
         {/* Winner */}
         <p style={{
-          fontSize: 54, fontWeight: "bold",
+          fontSize: 70, fontWeight: "bold",
           color: winnerInfo.color,
-          marginBottom: 44,
+          marginBottom: 57,
           opacity: winnerOpacity,
           transform: `scale(${winnerScale})`,
         }}>
@@ -107,22 +107,22 @@ export default function FinaleScene({ data, durationInFrames }: FinaleSceneProps
 
         {/* Stats */}
         <div style={{
-          display: "flex", gap: 88, textAlign: "center",
+          display: "flex", gap: 114, textAlign: "center",
           opacity: statsOpacity,
         }}>
           <div>
-            <p style={{ fontSize: 44, fontWeight: "bold", color: "white" }}>{result.total_rounds}</p>
-            <p style={{ fontSize: 20, color: "#6b7280" }}>总轮次</p>
+            <p style={{ fontSize: 57, fontWeight: "bold", color: "white" }}>{result.total_rounds}</p>
+            <p style={{ fontSize: 26, color: "#6b7280" }}>总轮次</p>
           </div>
           <div>
-            <p style={{ fontSize: 44, fontWeight: "bold", color: "white" }}>{result.eliminated_order.length}</p>
-            <p style={{ fontSize: 20, color: "#6b7280" }}>淘汰人数</p>
+            <p style={{ fontSize: 57, fontWeight: "bold", color: "white" }}>{result.eliminated_order.length}</p>
+            <p style={{ fontSize: 26, color: "#6b7280" }}>淘汰人数</p>
           </div>
           <div>
-            <p style={{ fontSize: 44, fontWeight: "bold", color: "white" }}>
+            <p style={{ fontSize: 57, fontWeight: "bold", color: "white" }}>
               {durationMin > 0 ? `${durationMin}m${durationRemSec}s` : `${durationSec}s`}
             </p>
-            <p style={{ fontSize: 20, color: "#6b7280" }}>总耗时</p>
+            <p style={{ fontSize: 26, color: "#6b7280" }}>总耗时</p>
           </div>
         </div>
       </div>

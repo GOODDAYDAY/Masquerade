@@ -38,12 +38,12 @@ export default function RoundTitle({ data, durationInFrames }: RoundTitleProps) 
       height: "100%", opacity,
     }}>
       <h2 style={{
-        fontSize: 88, fontWeight: "bold", color: "white",
-        marginBottom: 30, transform: `scale(${scale})`,
+        fontSize: 114, fontWeight: "bold", color: "white",
+        marginBottom: 39, transform: `scale(${scale})`,
       }}>
         第 {data.round} 轮
       </h2>
-      <p style={{ fontSize: 44, color: "#6366f1" }}>
+      <p style={{ fontSize: 57, color: "#6366f1" }}>
         {PHASE_LABELS[data.phase] ?? data.phase}
       </p>
     </div>
