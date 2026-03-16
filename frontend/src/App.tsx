@@ -20,13 +20,9 @@ export default function App() {
   }, []);
 
   // Auto-load script from URL parameter: ?script=game_werewolf_xxx.json
-  // Add &autoplay=true to auto-start playback (for headless recording)
-  const [autoplay, setAutoplay] = useState(false);
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const scriptFile = params.get("script");
-    if (params.get("autoplay") === "true") setAutoplay(true);
     if (!scriptFile || script) return;
 
     fetch(`/output/scripts/${scriptFile}`)
@@ -48,5 +44,5 @@ export default function App() {
     return <ScriptLoader onLoad={handleLoad} />;
   }
 
-  return <Theater script={script} gameId={gameId} autoplay={autoplay} />;
+  return <Theater script={script} gameId={gameId} />;
 }

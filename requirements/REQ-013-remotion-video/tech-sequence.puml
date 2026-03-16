@@ -1,0 +1,58 @@
+@startuml
+title REQ-013 Video Render Flow - Sequence Diagram
+
+actor User
+participant "render-video.bat" as Bat
+participant "render-video.mjs" as Script
+participant "@remotion/bundler" as Bundler
+participant "@remotion/renderer" as Renderer
+participant "Root.tsx" as Root
+participant "calculateMetadata" as CalcMeta
+participant "Video.tsx" as Video
+participant "Scene Components" as Scenes
+database "output/" as Output
+
+User -> Bat : render-video.bat game_xxx.json
+Bat -> Script : node render-video.mjs game_xxx.json
+
+== Bundle Phase ==
+Script -> Script : Validate script file exists
+Script -> Bundler : bundle(entryPoint, { publicDir: "output/" })
+Bundler --> Script : bundleLocation (temp dir)
+
+== Render Phase ==
+Script -> Renderer : renderMedia({ composition: "MasqueradeVideo",\n  inputProps: { scriptFile }, codec: "h264", crf: 18 })
+
+Renderer -> Root : Load composition
+Root -> CalcMeta : calculateMetadata({ scriptFile })
+
+CalcMeta -> Output : fetch scripts/game_xxx.json
+Output --> CalcMeta : GameScript JSON
+
+CalcMeta -> Output : fetch audio/{gameId}/manifest.json
+Output --> CalcMeta : Audio manifest + durations
+
+CalcMeta -> CalcMeta : buildFrameTimeline(script, audioDurations, 30)
+note right: Pure function:\nCompute SceneFrameRange[]\nand totalFrames
+
+CalcMeta --> Renderer : { durationInFrames, props }
+
+== Frame-by-Frame Rendering ==
+loop for each frame 0..totalFrames
+  Renderer -> Video : render(frame)
+  Video -> Video : Determine active Sequence
+  Video -> Scenes : render scene component
+  Scenes -> Scenes : useCurrentFrame()\nCompute visual state
+  Scenes --> Video : JSX output
+  Video --> Renderer : Frame pixels + audio samples
+end
+
+== Encoding ==
+Renderer -> Renderer : H.264 encode\nall frames + audio mix
+Renderer --> Script : Render complete
+
+Script -> Output : Write output/videos/game_xxx.mp4
+Script --> Bat : Done
+Bat --> User : Video path + file size
+
+@enduml

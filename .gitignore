@@ -223,3 +223,6 @@ __marimo__/
 node_modules/
 frontend/dist/
 *.tsbuildinfo
+
+# Remotion cache (Chrome Headless Shell download)
+.remotion/

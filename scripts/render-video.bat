@@ -1,9 +1,9 @@
 @echo off
-chcp 65001 >nul
+chcp 65001 >nul 2>nul
 cd /d "%~dp0\.."
 
 echo ========================================
-echo   Masquerade - Game Recorder
+echo   Masquerade - Video Renderer (Remotion)
 echo ========================================
 echo.
 
@@ -29,16 +29,14 @@ if not exist "output\scripts\%SCRIPT%" (
     exit /b 1
 )
 
-REM Install playwright if needed
-python -c "import playwright" 2>nul
+REM Render video via Remotion
+node scripts/render-video.mjs %SCRIPT%
 if %errorlevel% neq 0 (
-    echo Installing playwright...
-    pip install playwright
-    python -m playwright install chromium
+    echo.
+    echo Render FAILED.
+    pause
+    exit /b 1
 )
-
-REM Record (handles frontend start/stop internally)
-python scripts/record.py %SCRIPT%
 
 echo.
 pause

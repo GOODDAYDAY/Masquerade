@@ -52,10 +52,9 @@ const GAME_LABELS: Record<string, string> = {
 interface TheaterProps {
   script: GameScript;
   gameId: string;
-  autoplay?: boolean;
 }
 
-export default function Theater({ script, gameId, autoplay = false }: TheaterProps) {
+export default function Theater({ script, gameId }: TheaterProps) {
   const [timeline, setTimeline] = useState<TimelineController | null>(null);
   const [audioManager, setAudioManager] = useState<AudioManager | null>(null);
   const [currentScene, setCurrentScene] = useState<Scene | null>(null);
@@ -87,22 +86,6 @@ export default function Theater({ script, gameId, autoplay = false }: TheaterPro
 
     return () => { tl.destroy(); am.destroy(); };
   }, [script, gameId]);
-
-  // Track playback completion for automated recording
-  const [playbackComplete, setPlaybackComplete] = useState(false);
-
-  // Auto-start playback when autoplay is enabled (for headless recording)
-  useEffect(() => {
-    if (!autoplay || !timeline) return;
-    timeline.addListener({
-      onComplete: () => setPlaybackComplete(true),
-    });
-    const timer = setTimeout(() => {
-      timeline.play();
-      setIsPlaying(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [autoplay, timeline]);
 
   const handleSceneComplete = useCallback(() => {
     timeline?.markSceneComplete();
@@ -203,9 +186,6 @@ export default function Theater({ script, gameId, autoplay = false }: TheaterPro
         </div>
 
         <PlaybackControls />
-
-        {/* Hidden marker for Playwright to detect playback completion */}
-        {playbackComplete && <div id="playback-complete" data-complete="true" style={{ display: "none" }} />}
       </div>
     </TheaterContext.Provider>
   );

@@ -1,0 +1,97 @@
+@startuml
+title REQ-013 Remotion Video Rendering - Architecture
+
+skinparam componentStyle rectangle
+skinparam backgroundColor #FEFEFE
+
+package "frontend/src/remotion/" as remotion {
+  [Root.tsx\nregisterRoot + Composition] as Root
+  [Video.tsx\nMain Composition\n3-column layout + Sequences] as Video
+  [timeline.ts\nbuildFrameTimeline()\npure function] as Timeline
+
+  package "scenes/" {
+    [OpeningScene] as OS
+    [SpeakingScene] as SS
+    [ActionScene] as AS
+    [VotingScene] as VS
+    [FinaleScene] as FS
+    [RoundTitle] as RT
+  }
+
+  package "components/" {
+    [AnimatedText\nframe-driven typewriter] as AT
+    [FadeTransition\ninterpolate() opacity] as FT
+    [PlayerAvatarStatic\nno framer-motion] as PA
+  }
+}
+
+package "frontend/src/ (shared)" as shared {
+  [types/game-script.ts\nGameScript types] as Types
+  [components/shared/\nExpressionIcon] as EI
+  [utils/colors.ts\ngetPlayerColor()] as Colors
+}
+
+package "frontend/src/components/ (existing)" as theater {
+  [Theater.tsx\nInteractive playback\n(unchanged)] as Theater
+}
+
+package "scripts/" as scripts {
+  [render-video.mjs\nbundle() + renderMedia()] as RenderScript
+  [render-video.bat\nUser-facing wrapper] as RenderBat
+  [run.bat\nFull pipeline] as RunBat
+}
+
+package "output/" as output {
+  [scripts/*.json\nGameScript files] as ScriptFiles
+  [audio/{gameId}/\nTTS MP3 + manifest] as AudioFiles
+  [videos/*.mp4\nRendered output] as VideoFiles
+}
+
+package "Node.js Dependencies" as deps {
+  [@remotion/bundler\nwebpack bundle] as Bundler
+  [@remotion/renderer\nrenderMedia()] as Renderer
+  [remotion\ncore framework] as Core
+}
+
+' Remotion internal flow
+Root --> Video
+Video --> Timeline : buildFrameTimeline()
+Video --> OS
+Video --> SS
+Video --> AS
+Video --> VS
+Video --> FS
+Video --> RT
+
+OS --> PA
+SS --> AT
+SS --> PA
+AS --> AT
+AS --> PA
+VS --> PA
+FS --> PA
+
+OS --> FT
+SS --> FT
+AS --> FT
+RT --> FT
+
+' Shared imports
+Video --> Types
+Video --> EI
+PA --> Colors
+Theater --> Colors : after extraction
+
+' Render pipeline
+RenderBat --> RenderScript
+RunBat --> RenderScript
+RenderScript --> Bundler : bundle remotion entry
+RenderScript --> Renderer : renderMedia()
+Renderer --> Root : loads composition
+
+' Data flow
+Video ..> ScriptFiles : staticFile()
+Video ..> AudioFiles : staticFile()
+RenderScript ..> VideoFiles : writes MP4
+
+@enduml

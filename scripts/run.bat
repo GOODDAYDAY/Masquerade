@@ -36,17 +36,14 @@ exit /b 1
 echo.
 echo Script: %SCRIPT_FILE%
 
-REM Install playwright if needed
-python -c "import playwright" 2>nul
-if %errorlevel% neq 0 (
-    echo Installing playwright...
-    pip install playwright
-    python -m playwright install chromium
-)
-
-REM Record (headless, no browser window, auto audio merge)
+REM Generate TTS audio
 echo.
-python scripts/record.py %SCRIPT_FILE%
+echo Generating TTS audio...
+python -m backend.tts.generate output\scripts\%SCRIPT_FILE%
+
+REM Render video via Remotion (deterministic, frame-driven)
+echo.
+node scripts/render-video.mjs %SCRIPT_FILE%
 
 echo.
 echo ========================================
