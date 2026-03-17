@@ -17,3 +17,4 @@
 | REQ-013 | Remotion Video Rendering | Completed | 2026-03-16 | Replace CDP screencast with Remotion frame-driven rendering: deterministic 2K 60fps MP4 output with perfect audio sync, GPU-accelerated encoding |
 | REQ-014 | AI Intelligence & Prompt Upgrade | Completed | 2026-03-17 | Eliminate name bias, enrich personas, deepen strategic reasoning, evidence-based voting, prompt overhaul for all roles |
 | REQ-015 | Gameplay Quality Fixes | Completed | 2026-03-17 | Unified node context base class, anti-hallucination, wolf gesture quality, witch save logic, evaluator/optimizer full context injection | Eliminate name bias, enrich personas, deepen strategic reasoning, evidence-based voting, prompt overhaul for all roles |
+| REQ-016 | GPU Auto-Select for Video Rendering | Completed | 2026-03-17 | Auto-detect and select optimal GPU for Remotion rendering: NVIDIA discrete > AMD discrete > iGPU > CPU, zero manual config |

@@ -1,0 +1,71 @@
+@startuml
+title REQ-016 GPU Auto-Select Sequence
+
+participant "render-video.mjs" as Script
+participant "PowerShell" as PS
+participant "nvidia-smi" as NSMI
+participant "Remotion Launcher" as Launcher
+participant "Chrome Headless" as Chrome
+participant "ffmpeg" as FFmpeg
+
+== GPU Detection ==
+
+Script -> PS: Get-CimInstance Win32_VideoController
+PS --> Script: GPU list (name, vendorId, RAM)
+
+alt PowerShell failed
+  Script -> NSMI: nvidia-smi --query-gpu
+  NSMI --> Script: NVIDIA GPU info
+end
+
+Script -> Script: selectOptimalGpu(gpus)\npriority: NVIDIA > AMD > Intel > iGPU
+
+== Browser Patch ==
+
+Script -> Launcher: monkey-patch launchChrome()
+note right of Launcher
+  Wrap original function:
+  inject GPU args into opts.args
+end note
+
+Script -> Script: Set DXGI_GPU_PREFERENCE=2\nSet SHIM_MCCOMPAT=0x800000001
+
+== Encoder Detection ==
+
+Script -> FFmpeg: where ffmpeg
+FFmpeg --> Script: ffmpeg path
+
+Script -> FFmpeg: ffmpeg -encoders
+FFmpeg --> Script: encoder list
+
+loop for each candidate (vendor-ordered)
+  Script -> FFmpeg: test encode (256x256, 0.1s)
+  FFmpeg --> Script: success/fail
+end
+
+== Print Report ==
+
+Script -> Script: Print GPU Detection Report
+
+== Render (existing flow) ==
+
+Script -> Launcher: launchChrome(opts)\n(patched: extra GPU args)
+Launcher -> Chrome: spawn with GPU args
+note right of Chrome
+  --use-angle=d3d11
+  --enable-gpu
+  DXGI selects discrete GPU
+end note
+
+Chrome --> Launcher: browser instance
+Script -> Chrome: renderMedia (frame by frame)
+Chrome --> Script: MP4 (CPU-encoded)
+
+== GPU Re-encode (if available) ==
+
+alt GPU encoder detected
+  Script -> FFmpeg: re-encode with h264_nvenc/amf/qsv
+  FFmpeg --> Script: GPU-encoded MP4
+end
+
+@enduml

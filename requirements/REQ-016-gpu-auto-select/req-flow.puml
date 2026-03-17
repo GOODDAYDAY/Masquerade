@@ -1,0 +1,77 @@
+@startuml
+title GPU Auto-Select Flow
+
+start
+
+partition "GPU Detection" {
+  :Enumerate system GPUs;
+  note right
+    nvidia-smi, WMIC,
+    or PowerShell query
+  end note
+
+  :Classify each GPU;
+  note right
+    - Vendor: NVIDIA / AMD / Intel
+    - Type: discrete / integrated
+  end note
+
+  if (Any discrete GPU found?) then (yes)
+    if (NVIDIA discrete?) then (yes)
+      :Select NVIDIA as render GPU;
+    elseif (AMD discrete?) then (yes)
+      :Select AMD discrete as render GPU;
+    else (Intel discrete)
+      :Select Intel discrete as render GPU;
+    endif
+  elseif (Any integrated GPU?) then (yes)
+    :Select integrated GPU (iGPU);
+    :Print warning: no discrete GPU;
+  else (no GPU)
+    :Fallback to SwiftShader (CPU);
+    :Print warning: CPU rendering;
+  endif
+}
+
+partition "Chromium GPU Injection" {
+  :Monkey-patch Remotion internalOpenBrowser;
+
+  if (Patch succeeded?) then (yes)
+    :Inject DXGI_GPU_PREFERENCE=2;
+    :Inject --use-angle=d3d11;
+    :Inject GPU vendor/device ID args;
+  else (no)
+    :Skip patch, print warning;
+    :Use Remotion default behavior;
+  endif
+}
+
+partition "Encoder Selection" {
+  :Detect system ffmpeg;
+
+  if (h264_nvenc available?) then (yes)
+    :Select NVENC encoder;
+  elseif (h264_amf available?) then (yes)
+    :Select AMF encoder;
+  elseif (h264_qsv available?) then (yes)
+    :Select QSV encoder;
+  else (none)
+    :Use CPU libx264 (Remotion built-in);
+  endif
+}
+
+:Print GPU Detection Report;
+
+partition "Render Pipeline" {
+  :Bundle Remotion project;
+  :Render with selected GPU;
+
+  if (GPU encoder selected?) then (yes)
+    :Re-encode with GPU encoder;
+  endif
+}
+
+:Output MP4;
+
+stop
+@enduml
