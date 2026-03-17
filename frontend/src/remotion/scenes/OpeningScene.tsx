@@ -57,7 +57,7 @@ export default function OpeningScene({ data, durationInFrames }: OpeningScenePro
 
         {/* Player cards grid */}
         <div style={{
-          display: "flex", flexWrap: "wrap", gap: 39,
+          display: "flex", flexWrap: "wrap", gap: 29,
           justifyContent: "center", maxWidth: 1690,
         }}>
           {players.map((player, i) => {
@@ -84,21 +84,21 @@ export default function OpeningScene({ data, durationInFrames }: OpeningScenePro
                   transform: `translateY(${cardY}px)`,
                   backgroundColor: "#14141f",
                   border: "1px solid #2a2a3a",
-                  borderRadius: 25, padding: 39,
+                  borderRadius: 20, padding: 29,
                   display: "flex", flexDirection: "column",
                   alignItems: "center", textAlign: "center",
-                  width: 338,
+                  width: 270,
                 }}
               >
                 <PlayerAvatarStatic
                   name={player.name}
                   playerId={player.id}
-                  size={130}
+                  size={104}
                   word={player.word}
                   role={player.role}
                 />
                 <p style={{
-                  fontSize: 26, color: "#6b7280", marginTop: 21,
+                  fontSize: 21, color: "#6b7280", marginTop: 16,
                   overflow: "hidden", display: "-webkit-box",
                   WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
                 }}>

@@ -161,14 +161,19 @@ let lastProgress = 0;
 // If GPU available, render to temp file first, then re-encode with NVENC
 const renderTarget = gpu ? outputFile.replace(".mp4", "_cpu.mp4") : outputFile;
 
+// Use all CPU cores for maximum parallelism
+const cpuCount = (await import("os")).default.cpus().length;
+
 await renderMedia({
   composition,
   serveUrl: bundleLocation,
   codec: "h264",
   outputLocation: renderTarget,
   inputProps: { scriptFile },
-  crf: 16,
+  crf: 18,
   chromiumOptions,
+  concurrency: cpuCount,
+  x264Preset: "fast",
   onProgress: ({ progress }) => {
     const pct = Math.round(progress * 100);
     if (pct >= lastProgress + 5) {

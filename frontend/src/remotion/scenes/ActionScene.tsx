@@ -128,6 +128,7 @@ export default function ActionScene({
               border: "1px solid rgba(255,255,255,0.1)",
               borderRadius: 25, padding: "21px 39px",
               maxWidth: 1040, width: "100%", marginBottom: 29,
+              maxHeight: 200, overflow: "hidden",
             }}>
               <span style={{ fontSize: 26, color: "#6b7280", marginRight: 10 }}>💭</span>
               <AnimatedText
@@ -148,6 +149,7 @@ export default function ActionScene({
                 border: `1px solid ${cardBorder}`,
                 borderRadius: 31, padding: "44px 57px",
                 maxWidth: 1300, width: "100%",
+                maxHeight: 500, overflow: "hidden",
               }}>
                 <AnimatedText
                   text={textContent}

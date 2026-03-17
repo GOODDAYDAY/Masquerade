@@ -25,19 +25,57 @@ export interface VideoProps {
   showSpeechHistory?: boolean;
 }
 
-/** Compute eliminated player IDs up to a given absolute frame */
+/** Compute eliminated player IDs up to a given absolute frame.
+ *  Tracks all death sources: vote elimination, wolf kill, witch poison, hunter shoot, death announce.
+ */
 function getEliminatedIds(scenes: SceneFrameRange[], currentFrame: number): string[] {
-  const ids: string[] = [];
+  const ids = new Set<string>();
   for (const scene of scenes) {
     if (scene.startFrame > currentFrame) break;
     if (scene.type === "voting") {
       const voteData = scene.scene.data as { voteResult: { eliminated: string | null } };
       if (voteData.voteResult.eliminated) {
-        ids.push(voteData.voteResult.eliminated);
+        ids.add(voteData.voteResult.eliminated);
+      }
+    } else if (scene.type === "action") {
+      const data = scene.scene.data as import("./timeline").ActionData;
+      const actionType = data.event.action.type;
+      const payload = data.event.action.payload;
+      const safeStr = (v: unknown): string => {
+        if (v == null) return "";
+        if (typeof v === "string") return v;
+        if (typeof v === "object") {
+          const obj = v as Record<string, unknown>;
+          return String(obj["target"] ?? obj["use"] ?? "");
+        }
+        return String(v);
+      };
+      if (actionType === "wolf_kill") {
+        const target = safeStr(payload["target"]) || safeStr(payload["target_player_id"]);
+        if (target) ids.add(target);
+      } else if (actionType === "hunter_shoot") {
+        const target = safeStr(payload["target"]) || safeStr(payload["target_player_id"]);
+        if (target) ids.add(target);
+      } else if (actionType === "witch_action") {
+        const rawUse = payload["use"];
+        const witchUse = typeof rawUse === "object" && rawUse ? safeStr((rawUse as Record<string, unknown>)["use"] ?? rawUse) : safeStr(rawUse);
+        if (witchUse === "poison") {
+          const target = safeStr(payload["target"]) || safeStr(payload["target_player_id"]);
+          if (target) ids.add(target);
+        } else if (witchUse === "antidote") {
+          // Antidote saves the wolf kill target — remove from eliminated
+          const target = safeStr(payload["target"]) || safeStr(payload["target_player_id"]);
+          if (target) ids.delete(target);
+        }
+      } else if (actionType === "death_announce") {
+        const deaths = safeStr(payload["deaths"]);
+        if (deaths) {
+          deaths.split(",").map((s: string) => s.trim()).filter(Boolean).forEach((id: string) => ids.add(id));
+        }
       }
     }
   }
-  return ids;
+  return Array.from(ids);
 }
 
 /** Collect speech events that have finished playing before the current frame */
@@ -123,7 +161,7 @@ export default function Video({ script, scenes, showSpeechHistory = false }: Vid
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Left panel — action history */}
         <aside style={{
-          width: 520, flexShrink: 0,
+          width: 640, flexShrink: 0,
           borderRight: "1px solid #2a2a3a",
           backgroundColor: "rgba(10,10,15,0.9)",
           display: "flex", flexDirection: "column",

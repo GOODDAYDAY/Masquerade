@@ -84,11 +84,12 @@ export default function ActionHistoryPanel({ events, players }: ActionHistoryPan
         const deaths = safeStr(payload["deaths"]);
 
         let mainText = "";
+        const targetRoleStr = target && getRole(target) ? `(${getRole(target)})` : "";
         if (actionType === "vote" || actionType === "wolf_kill" || actionType === "protect" || actionType === "seer_check" || actionType === "hunter_shoot") {
-          mainText = `${display.label} → ${getName(target)}`;
+          mainText = `${display.label} → ${getName(target)}${targetRoleStr}`;
         } else if (actionType === "witch_action") {
           mainText = WITCH_LABELS[witchUse] ?? witchUse;
-          if (witchUse === "poison" && target) mainText += ` → ${getName(target)}`;
+          if (witchUse === "poison" && target) mainText += ` → ${getName(target)}${targetRoleStr}`;
         } else if (actionType === "death_announce") {
           mainText = deaths ? deaths.split(",").map((n: string) => n.trim()).join("、") + " 死亡" : "死亡公告";
         } else if (actionType === "wolf_discuss") {
