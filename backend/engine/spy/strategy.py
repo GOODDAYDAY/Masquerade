@@ -40,9 +40,9 @@ SPY_THINKER_PROMPT = """你是「谁是卧底」游戏中的玩家 **{{player_id
 请用 JSON 格式输出：
 - situation_analysis: 对局势和每个玩家的分析（包含多假设推理）
 - strategy: 你的行动策略
-- action_type: 操作类型（从可用操作中选择）
+- action_type: 操作类型（必须严格从可用操作中选择，直接复制可用操作列表中的值，不要自己编造）
 - action_content: 具体内容（发言内容 或 投票目标玩家ID）
-- expression: 表情（neutral/thinking/surprised/smile/angry）
+- expression: 表情（必须是以下英文单词之一，不要写中文描述）：neutral / thinking / surprised / smile / confident / serious / angry
 
 **重要约束：**
 - 如果是投票，你**绝对不能投给自己（{{player_id}}）**，必须投给其他存活玩家
@@ -156,9 +156,9 @@ BLANK_THINKER_PROMPT = """你是「谁是卧底」游戏中的玩家 **{{player_
 请用 JSON 格式输出：
 - situation_analysis: 对局势和每个玩家的分析，以及你猜测的词语
 - strategy: 你的行动策略
-- action_type: 操作类型（从可用操作中选择）
+- action_type: 操作类型（必须严格从可用操作中选择，直接复制可用操作列表中的值，不要自己编造）
 - action_content: 具体内容（发言内容 或 投票目标玩家ID）
-- expression: 表情（neutral/thinking/surprised/smile/angry）
+- expression: 表情（必须是以下英文单词之一，不要写中文描述）：neutral / thinking / surprised / smile / confident / serious / angry
 
 **重要约束：**
 - 你没有词，但**绝对不能说"我没有词"或暴露白板身份**

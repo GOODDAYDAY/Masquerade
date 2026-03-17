@@ -593,7 +593,16 @@ class WerewolfGame(GameEngine):
         if player_id != self.witch_id:
             raise IllegalActionError("Only witch can use potions")
 
-        use = action.payload.get("use", "skip").strip()
+        raw_use = action.payload.get("use", "skip")
+
+        # AI may return use as dict/nested object instead of string — normalize
+        if isinstance(raw_use, dict):
+            # Try to extract action from nested dict: {"action": "poison", "target": "xxx"}
+            if "target" in raw_use and "target" not in action.payload:
+                action.payload["target"] = str(raw_use["target"])
+            raw_use = str(raw_use.get("action", raw_use.get("type", raw_use.get("use", "skip"))))
+
+        use = str(raw_use).strip().lower()
 
         # Tolerate AI returning "poison:target" or "poison target" in the use field
         if use.startswith("poison") and len(use) > 6:

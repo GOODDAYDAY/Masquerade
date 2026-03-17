@@ -50,6 +50,7 @@ class GameRunner:
         self.game_type = game_type
         self.game_config = game_config
         self.app_settings = app_settings or AppSettings()
+        # TODO(haotian): 2026/3/16 启用
         self.event_bus = EventBus()
 
     async def run(self) -> GameScript:
