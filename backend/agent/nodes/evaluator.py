@@ -85,7 +85,8 @@ def _validate_action(state: AgentState) -> str | None:
 
         # Player-target field: validate against alive players
         if _is_player_field(field_name, description):
-            if value == player_id:
+            # Guard (protect) is allowed to target self; all other actions cannot
+            if value == player_id and action_type != "protect":
                 valid_targets = [p for p in alive if p != player_id]
                 return (
                     "%s: cannot target yourself ('%s'). Valid targets: %s"
@@ -150,12 +151,22 @@ async def evaluator_node(state: AgentState, llm_client: LLMClient) -> dict:
     situation_analysis = state.get("situation_analysis", "")
     strategy = state.get("strategy", "")
 
+    action_payload_str = json.dumps(state.get("final_action_payload", {}), ensure_ascii=False)
+
     prompt = prompt_template.format(
         situation_analysis=json.dumps(situation_analysis, ensure_ascii=False) if isinstance(situation_analysis, dict) else str(situation_analysis),
         strategy=json.dumps(strategy, ensure_ascii=False) if isinstance(strategy, dict) else str(strategy),
         action_type=state.get("final_action_type", ""),
-        action_payload=json.dumps(state.get("final_action_payload", {}), ensure_ascii=False),
+        action_payload=action_payload_str,
         private_info=json.dumps(state.get("private_info", {}), ensure_ascii=False),
+    )
+
+    # Prevent evaluator from confusing strategy analysis with actual payload
+    prompt += (
+        '\n\n**评估重点提醒：你评估的对象是上面的「操作内容」(action_payload)，即：%s。'
+        '不要把「局势分析」或「策略」中的文字误认为是操作内容。'
+        '如果操作内容是纯动作描述且不包含语言文字，就应该判定通过。**'
+        % action_payload_str
     )
 
     # Evaluator gets full context — needs memory to verify factual claims,

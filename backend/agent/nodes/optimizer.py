@@ -71,6 +71,11 @@ async def optimizer_node(state: AgentState, llm_client: LLMClient) -> dict:
         action_type=action_type,
     )
 
+    # Inject thinker's strategy so optimizer knows the intended direction
+    thinker_strategy = state.get("strategy", "")
+    strategy_str = json.dumps(thinker_strategy, ensure_ascii=False) if isinstance(thinker_strategy, dict) else str(thinker_strategy)
+
+    prompt += '\n\n**策略遵循规则（最高优先级）：你的任务是润色，不是改变策略。Thinker 的策略方向是：「' + strategy_str[:200] + '」。你必须严格遵循这个策略方向进行润色。如果策略说"伪装成好人"，你就必须输出好人视角的发言，绝对不能暴露真实身份。如果策略说"质疑某人"，你就质疑那个人，不能改成支持。**'
     prompt += '\n\n**反幻觉规则（严格执行）：你只能引用游戏状态中实际存在的发言和事件。如果某人还没发言，不能编造他说过的话。如果是第一个发言者，不要引用任何人的"发言"。关键信息（查验结果、投票目标、玩家名字）必须与原始内容保持一致，不能更改。**'
 
     # Optimizer gets full context: game rules + memory + public_state + private_info
