@@ -11,6 +11,8 @@ interface PlayerAvatarStaticProps {
   size?: number;
   dimmed?: boolean;
   eliminated?: boolean;
+  /** Death cause label (e.g. "投票放逐", "狼人击杀") — shown below name when eliminated */
+  deathCause?: string;
   word?: string;
   role?: string;
 }
@@ -36,7 +38,7 @@ const ROLE_STYLES: Record<string, { bg: string; text: string }> = {
 };
 
 export default function PlayerAvatarStatic({
-  name, playerId, size = 156, dimmed = false, eliminated = false, word, role,
+  name, playerId, size = 156, dimmed = false, eliminated = false, deathCause, word, role,
 }: PlayerAvatarStaticProps) {
   const color = getPlayerColor(playerId);
   const initial = name.charAt(0);
@@ -100,6 +102,16 @@ export default function PlayerAvatarStatic({
       }}>
         {name}
       </span>
+      {/* Death cause (shown when eliminated) */}
+      {eliminated && deathCause && (
+        <span style={{
+          fontSize: 18,
+          color: "#ef4444",
+          fontWeight: "bold",
+        }}>
+          {deathCause}
+        </span>
+      )}
       {/* Word label (spy game) */}
       {!dimmed && word && (
         <span style={{

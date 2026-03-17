@@ -25,17 +25,15 @@ export interface VideoProps {
   showSpeechHistory?: boolean;
 }
 
-/** Compute eliminated player IDs up to a given absolute frame.
- *  Tracks all death sources: vote elimination, wolf kill, witch poison, hunter shoot, death announce.
- */
-function getEliminatedIds(scenes: SceneFrameRange[], currentFrame: number): string[] {
-  const ids = new Set<string>();
+/** Compute eliminated players with death causes up to a given absolute frame. */
+function getEliminatedMap(scenes: SceneFrameRange[], currentFrame: number): Map<string, string> {
+  const ids = new Map<string, string>(); // playerId → death cause
   for (const scene of scenes) {
     if (scene.startFrame > currentFrame) break;
     if (scene.type === "voting") {
       const voteData = scene.scene.data as { voteResult: { eliminated: string | null } };
       if (voteData.voteResult.eliminated) {
-        ids.add(voteData.voteResult.eliminated);
+        ids.set(voteData.voteResult.eliminated, "vote");
       }
     } else if (scene.type === "action") {
       const data = scene.scene.data as import("./timeline").ActionData;
@@ -52,30 +50,31 @@ function getEliminatedIds(scenes: SceneFrameRange[], currentFrame: number): stri
       };
       if (actionType === "wolf_kill") {
         const target = safeStr(payload["target"]) || safeStr(payload["target_player_id"]);
-        if (target) ids.add(target);
+        if (target) ids.set(target, "wolf_kill");
       } else if (actionType === "hunter_shoot") {
         const target = safeStr(payload["target"]) || safeStr(payload["target_player_id"]);
-        if (target) ids.add(target);
+        if (target && target !== "skip") ids.set(target, "hunter_shoot");
       } else if (actionType === "witch_action") {
         const rawUse = payload["use"];
         const witchUse = typeof rawUse === "object" && rawUse ? safeStr((rawUse as Record<string, unknown>)["use"] ?? rawUse) : safeStr(rawUse);
         if (witchUse === "poison") {
           const target = safeStr(payload["target"]) || safeStr(payload["target_player_id"]);
-          if (target) ids.add(target);
+          if (target) ids.set(target, "poison");
         } else if (witchUse === "antidote") {
-          // Antidote saves the wolf kill target — remove from eliminated
           const target = safeStr(payload["target"]) || safeStr(payload["target_player_id"]);
           if (target) ids.delete(target);
         }
       } else if (actionType === "death_announce") {
         const deaths = safeStr(payload["deaths"]);
         if (deaths) {
-          deaths.split(",").map((s: string) => s.trim()).filter(Boolean).forEach((id: string) => ids.add(id));
+          deaths.split(",").map((s: string) => s.trim()).filter(Boolean).forEach((id: string) => {
+            if (!ids.has(id)) ids.set(id, "death_announce");
+          });
         }
       }
     }
   }
-  return Array.from(ids);
+  return ids;
 }
 
 /** Collect speech events that have finished playing before the current frame */
@@ -114,7 +113,7 @@ const GAME_LABELS: Record<string, string> = {
 export default function Video({ script, scenes, showSpeechHistory = false }: VideoProps) {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
-  const eliminatedIds = getEliminatedIds(scenes, frame);
+  const eliminatedMap = getEliminatedMap(scenes, frame);
   const speechHistory = showSpeechHistory ? getSpeechHistory(scenes, frame) : [];
   const actionHistory = getActionHistory(scenes, frame);
 
@@ -179,7 +178,7 @@ export default function Video({ script, scenes, showSpeechHistory = false }: Vid
           {scenes.map((scene, idx) => (
             <Sequence key={idx} from={scene.startFrame} durationInFrames={scene.durationInFrames}>
               <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-                {renderScene(scene, script, eliminatedIds)}
+                {renderScene(scene, script, eliminatedMap)}
               </div>
             </Sequence>
           ))}
@@ -262,18 +261,18 @@ function SpyHeader({ players }: { players: PlayerInfo[] }) {
 
 // --- Scene rendering ---
 
-function renderScene(scene: SceneFrameRange, script: GameScript, eliminatedIds: string[]) {
+function renderScene(scene: SceneFrameRange, script: GameScript, eliminatedMap: Map<string, string>) {
   switch (scene.type) {
     case "opening":
       return <OpeningScene data={scene.scene.data as import("./timeline").OpeningData} durationInFrames={scene.durationInFrames} />;
     case "round-title":
       return <RoundTitle data={scene.scene.data as import("./timeline").RoundTitleData} durationInFrames={scene.durationInFrames} />;
     case "speaking":
-      return <SpeakingScene data={scene.scene.data as SpeakingData} durationInFrames={scene.durationInFrames} script={script} eliminatedIds={eliminatedIds} />;
+      return <SpeakingScene data={scene.scene.data as SpeakingData} durationInFrames={scene.durationInFrames} script={script} eliminatedMap={eliminatedMap} />;
     case "action":
-      return <ActionScene data={scene.scene.data as import("./timeline").ActionData} durationInFrames={scene.durationInFrames} script={script} eliminatedIds={eliminatedIds} />;
+      return <ActionScene data={scene.scene.data as import("./timeline").ActionData} durationInFrames={scene.durationInFrames} script={script} eliminatedMap={eliminatedMap} />;
     case "voting":
-      return <VotingScene data={scene.scene.data as import("./timeline").VotingData} durationInFrames={scene.durationInFrames} script={script} eliminatedIds={eliminatedIds} />;
+      return <VotingScene data={scene.scene.data as import("./timeline").VotingData} durationInFrames={scene.durationInFrames} script={script} eliminatedMap={eliminatedMap} />;
     case "finale":
       return <FinaleScene data={scene.scene.data as import("./timeline").FinaleData} durationInFrames={scene.durationInFrames} />;
   }

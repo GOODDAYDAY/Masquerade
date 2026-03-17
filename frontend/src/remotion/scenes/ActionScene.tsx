@@ -33,11 +33,15 @@ interface ActionSceneProps {
   data: ActionData;
   durationInFrames: number;
   script: GameScript;
-  eliminatedIds: string[];
+  eliminatedMap: Map<string, string>;
 }
 
+const DEATH_LABELS: Record<string, string> = {
+  vote: "投票放逐", wolf_kill: "狼人击杀", poison: "女巫毒杀", hunter_shoot: "猎人带走", death_announce: "死亡",
+};
+
 export default function ActionScene({
-  data, durationInFrames, script, eliminatedIds,
+  data, durationInFrames, script, eliminatedMap,
 }: ActionSceneProps) {
   const frame = useCurrentFrame();
   const { event, round, tipEndFrame } = data;
@@ -93,13 +97,15 @@ export default function ActionScene({
         <div style={{ display: "flex", gap: 29, justifyContent: "center", marginBottom: 29, flexWrap: "wrap" }}>
           {players.map((p) => {
             const isActive = p.id === event.player_id;
-            const isOut = eliminatedIds.includes(p.id);
+            const deathCause = eliminatedMap.get(p.id);
+            const isOut = !!deathCause;
             return (
               <div key={p.id} style={{ transform: isActive ? "scale(1.1)" : "scale(1)" }}>
                 <PlayerAvatarStatic
                   name={p.name} playerId={p.id}
                   size={isActive ? 156 : 130}
                   dimmed={!isActive} eliminated={isOut}
+                  deathCause={deathCause ? DEATH_LABELS[deathCause] ?? deathCause : undefined}
                   word={p.word} role={p.role}
                 />
               </div>

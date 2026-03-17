@@ -14,11 +14,15 @@ interface VotingSceneProps {
   data: VotingData;
   durationInFrames: number;
   script: GameScript;
-  eliminatedIds: string[];
+  eliminatedMap: Map<string, string>;
 }
 
+const DEATH_LABELS: Record<string, string> = {
+  vote: "投票放逐", wolf_kill: "狼人击杀", poison: "女巫毒杀", hunter_shoot: "猎人带走", death_announce: "死亡",
+};
+
 export default function VotingScene({
-  data, durationInFrames, script, eliminatedIds,
+  data, durationInFrames, script, eliminatedMap,
 }: VotingSceneProps) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -46,8 +50,7 @@ export default function VotingScene({
 
   const getName = (id: string) => players.find((p) => p.id === id)?.name ?? id;
 
-  // Players who were already eliminated before this vote
-  const previouslyEliminated = eliminatedIds.filter((id) => id !== voteResult.eliminated);
+  // (eliminatedMap already tracks all previous deaths)
 
   // Result animation
   const resultScale = showResult
@@ -63,13 +66,17 @@ export default function VotingScene({
         {/* Player row with vote count badges */}
         <div style={{ display: "flex", gap: 44, marginBottom: 75, flexWrap: "wrap", justifyContent: "center" }}>
           {players.map((p) => {
-            const isOut = previouslyEliminated.includes(p.id) || (showResult && voteResult.eliminated === p.id);
+            const prevDeath = eliminatedMap.get(p.id);
+            const isOut = !!prevDeath || (showResult && voteResult.eliminated === p.id);
+            const deathCause = prevDeath ?? (showResult && voteResult.eliminated === p.id ? "vote" : undefined);
             const votes = tally[p.id] ?? 0;
             return (
               <div key={p.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
                 <PlayerAvatarStatic
                   name={p.name} playerId={p.id} size={104}
-                  eliminated={isOut} word={p.word} role={p.role}
+                  eliminated={isOut}
+                  deathCause={deathCause ? DEATH_LABELS[deathCause] ?? deathCause : undefined}
+                  word={p.word} role={p.role}
                 />
                 {votes > 0 && (
                   <span style={{
