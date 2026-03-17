@@ -30,6 +30,7 @@ export default function SpeakingScene({
   const speechContent = event.action.payload["content"] ?? "";
   const strategyTip = event.strategy_tip ?? "";
   const firedRef = useRef(false);
+  const speechBubbleRef = useRef<HTMLDivElement>(null);
 
   // Phase: "tip" (showing strategy tip) → "speech" (showing speech bubble)
   const [phase, setPhase] = useState<"tip" | "speech">(strategyTip ? "tip" : "speech");
@@ -73,9 +74,31 @@ export default function SpeakingScene({
     };
   }, [phase, audioManager, round, eventIndex, event.player_id, speechContent, speed, onComplete]);
 
+  // Auto-scroll speech bubble as text appears
+  useEffect(() => {
+    if (phase !== "speech" || !speechBubbleRef.current) return;
+    const el = speechBubbleRef.current;
+    const interval = setInterval(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }, 200);
+    return () => clearInterval(interval);
+  }, [phase, speechContent]);
+
+  // Responsive avatar sizing: shrink if too many players for container
+  const avatarDefault = { active: 64, inactive: 52 };
+  const avatarGap = 12; // gap-3 = 0.75rem ≈ 12px
+  const containerWidth = 800; // approximate Theater center panel width
+  const totalGap = (players.length - 1) * avatarGap;
+  const maxPerPlayer = (containerWidth - totalGap) / players.length;
+  const avatarScale = maxPerPlayer >= avatarDefault.inactive ? 1 : maxPerPlayer / avatarDefault.inactive;
+  const avatarSize = {
+    active: Math.floor(avatarDefault.active * avatarScale),
+    inactive: Math.floor(avatarDefault.inactive * avatarScale),
+  };
+
   return (
     <div className="h-full flex flex-col px-6 py-4">
-      {/* Avatar row — larger sizes, tighter spacing */}
+      {/* Avatar row — responsive sizing */}
       <div className="flex gap-3 justify-center mb-3 flex-wrap">
         {players.map((p) => {
           const isActive = p.id === event.player_id;
@@ -85,7 +108,7 @@ export default function SpeakingScene({
               <PlayerAvatar
                 name={p.name}
                 playerId={p.id}
-                size={isActive ? 64 : 52}
+                size={isActive ? avatarSize.active : avatarSize.inactive}
                 dimmed={!isActive}
                 eliminated={isOut}
                 word={p.word}
@@ -109,7 +132,7 @@ export default function SpeakingScene({
         {/* Strategy tip — inner monologue bubble (shows first, stays visible) */}
         {strategyTip && (
           <motion.div
-            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 max-w-md w-full mb-3"
+            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 max-w-md w-full mb-3 max-h-24 overflow-y-auto"
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
@@ -124,10 +147,11 @@ export default function SpeakingScene({
           </motion.div>
         )}
 
-        {/* Speech bubble — only appears after tip finishes */}
+        {/* Speech bubble — only appears after tip finishes, scrollable */}
         {phase === "speech" && (
           <motion.div
-            className="bg-theater-surface border border-theater-border rounded-2xl px-6 py-5 max-w-xl w-full"
+            ref={speechBubbleRef}
+            className="bg-theater-surface border border-theater-border rounded-2xl px-6 py-5 max-w-xl w-full max-h-48 overflow-y-auto"
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <AnimatedText text={speechContent} speed={TEXT_SPEED} playbackSpeed={speed}
               className="text-base text-gray-200 leading-relaxed" />

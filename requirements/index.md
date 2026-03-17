@@ -18,3 +18,4 @@
 | REQ-014 | AI Intelligence & Prompt Upgrade | Completed | 2026-03-17 | Eliminate name bias, enrich personas, deepen strategic reasoning, evidence-based voting, prompt overhaul for all roles |
 | REQ-015 | Gameplay Quality Fixes | Completed | 2026-03-17 | Unified node context base class, anti-hallucination, wolf gesture quality, witch save logic, evaluator/optimizer full context injection | Eliminate name bias, enrich personas, deepen strategic reasoning, evidence-based voting, prompt overhaul for all roles |
 | REQ-016 | GPU Auto-Select for Video Rendering | Completed | 2026-03-17 | Auto-detect and select optimal GPU for Remotion rendering: NVIDIA discrete > AMD discrete > iGPU > CPU, zero manual config |
+| REQ-017 | UI Layout Fix & AI Intelligence Upgrade | Completed | 2026-03-17 | Avatar responsive layout for 12 players, subtitle auto-scroll, and systematic AI speech quality upgrade with meta-knowledge injection |

@@ -113,7 +113,14 @@ export default function ActionScene({
 
   return (
     <div className={`h-full flex flex-col px-6 py-4 ${isNight ? "bg-gray-900/40" : ""}`}>
-      {/* Avatar row */}
+      {/* Avatar row — responsive sizing */}
+      {(() => {
+        const gap = 12, containerW = 800;
+        const defI = 52, defA = 64;
+        const maxPer = (containerW - (players.length - 1) * gap) / players.length;
+        const s = maxPer >= defI ? 1 : maxPer / defI;
+        const sI = Math.floor(defI * s), sA = Math.floor(defA * s);
+        return (
       <div className="flex gap-3 justify-center mb-3 flex-wrap">
         {players.map((p) => {
           const isActive = p.id === event.player_id;
@@ -123,7 +130,7 @@ export default function ActionScene({
               <PlayerAvatar
                 name={p.name}
                 playerId={p.id}
-                size={isActive ? 64 : 52}
+                size={isActive ? sA : sI}
                 dimmed={!isActive}
                 eliminated={isOut}
                 word={p.word}
@@ -133,6 +140,8 @@ export default function ActionScene({
           );
         })}
       </div>
+        );
+      })()}
 
       {/* Action content area */}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0">

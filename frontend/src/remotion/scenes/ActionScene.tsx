@@ -93,8 +93,18 @@ export default function ActionScene({
   return (
     <FadeTransition durationInFrames={durationInFrames}>
       <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "39px 57px", backgroundColor: nightBg }}>
-        {/* Avatar row */}
-        <div style={{ display: "flex", gap: 29, justifyContent: "center", marginBottom: 29, flexWrap: "wrap" }}>
+        {/* Avatar row — responsive sizing */}
+        {(() => {
+          const gap = 29;
+          const maxRow = 2560 - 57 * 2;
+          const totalGap = (players.length - 1) * gap;
+          const maxInactive = (maxRow - totalGap) / players.length;
+          const defInactive = 130, defActive = 156;
+          const scale = maxInactive >= defInactive ? 1 : maxInactive / defInactive;
+          const sInactive = Math.floor(defInactive * scale);
+          const sActive = Math.floor(defActive * scale);
+          return (
+        <div style={{ display: "flex", gap, justifyContent: "center", marginBottom: 29, flexWrap: "wrap" }}>
           {players.map((p) => {
             const isActive = p.id === event.player_id;
             const deathCause = eliminatedMap.get(p.id);
@@ -103,7 +113,7 @@ export default function ActionScene({
               <div key={p.id} style={{ transform: isActive ? "scale(1.1)" : "scale(1)" }}>
                 <PlayerAvatarStatic
                   name={p.name} playerId={p.id}
-                  size={isActive ? 156 : 130}
+                  size={isActive ? sActive : sInactive}
                   dimmed={!isActive} eliminated={isOut}
                   deathCause={deathCause ? DEATH_LABELS[deathCause] ?? deathCause : undefined}
                   word={p.word} role={p.role}
@@ -112,6 +122,8 @@ export default function ActionScene({
             );
           })}
         </div>
+          );
+        })()}
 
         {/* Action content area */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
