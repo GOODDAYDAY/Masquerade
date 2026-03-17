@@ -21,21 +21,37 @@ def _extract_game_id(script_path: Path) -> str:
 
 
 def _collect_speech_events(script_data: dict) -> list[dict]:
-    """Extract all speaking events from the script, preserving round and index info."""
+    """Extract all events with text content from the script for TTS generation.
+
+    Supported action types:
+    - speak: regular speech (content field)
+    - last_words: dying speech (content field)
+    - wolf_discuss: wolf night gesture descriptions (gesture field) — narrated for audience
+    """
     events = []
     for round_data in script_data.get("rounds", []):
         round_num = round_data["round_number"]
         event_index = 0
         for event in round_data.get("events", []):
             action = event.get("action", {})
-            if action.get("type") == "speak":
+            action_type = action.get("type", "")
+            payload = action.get("payload", {})
+
+            # Extract text content based on action type
+            content = ""
+            if action_type in ("speak", "last_words"):
+                content = payload.get("content", "")
+            elif action_type == "wolf_discuss":
+                content = payload.get("gesture", "")
+
+            if content and content.strip():
                 events.append({
                     "round": round_num,
                     "event_index": event_index,
                     "player_id": event["player_id"],
-                    "content": action.get("payload", {}).get("content", ""),
+                    "content": content,
                 })
-                event_index += 1
+            event_index += 1
     return events
 
 

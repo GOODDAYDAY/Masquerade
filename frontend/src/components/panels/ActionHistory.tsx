@@ -58,11 +58,21 @@ export default function ActionHistory({ events, players, currentEventIndex }: Ac
         const payload = item.event.action.payload;
         const display = ACTION_DISPLAY[actionType] ?? { icon: "⚡", label: actionType };
 
-        // Build description
-        const target = payload["target"] ?? payload["target_player_id"] ?? "";
-        const witchUse = payload["use"] ?? "";
-        const deaths = payload["deaths"] ?? "";
-        const gesture = payload["gesture"] ?? "";
+        // Safely extract payload values — AI may return nested objects
+        const safeStr = (v: unknown): string => {
+          if (v == null) return "";
+          if (typeof v === "string") return v;
+          if (typeof v === "object") {
+            const obj = v as Record<string, unknown>;
+            return String(obj["use"] ?? obj["action"] ?? obj["content"] ?? obj["target"] ?? "");
+          }
+          return String(v);
+        };
+        const target = safeStr(payload["target"]) || safeStr(payload["target_player_id"]) || "";
+        const rawUse = payload["use"];
+        const witchUse = typeof rawUse === "object" && rawUse ? safeStr((rawUse as Record<string, unknown>)["use"] ?? rawUse) : safeStr(rawUse);
+        const deaths = safeStr(payload["deaths"]);
+        const gesture = safeStr(payload["gesture"]);
 
         let mainText = "";
         let subText = "";

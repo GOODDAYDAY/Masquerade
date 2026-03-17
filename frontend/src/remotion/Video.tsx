@@ -40,46 +40,28 @@ function getEliminatedIds(scenes: SceneFrameRange[], currentFrame: number): stri
   return ids;
 }
 
-/** Collect speech events from previous rounds for side panel */
+/** Collect speech events that have finished playing before the current frame */
 function getSpeechHistory(scenes: SceneFrameRange[], currentFrame: number) {
   const events: { event: GameScript["rounds"][0]["events"][0]; round: number }[] = [];
-  // Find current round number
-  let currentRound = 0;
   for (const scene of scenes) {
-    if (scene.startFrame > currentFrame) break;
-    if ("round" in scene.scene.data) {
-      currentRound = (scene.scene.data as { round: number }).round;
-    }
-  }
-  for (const scene of scenes) {
-    if (scene.startFrame > currentFrame) break;
+    if (scene.startFrame + scene.durationInFrames > currentFrame) break;
     if (scene.type === "speaking") {
       const data = scene.scene.data as SpeakingData;
-      if (data.round < currentRound) {
-        events.push({ event: data.event, round: data.round });
-      }
+      events.push({ event: data.event, round: data.round });
     }
   }
   return events;
 }
 
-/** Collect action events from previous rounds for side panel */
+/** Collect action events that have finished playing before the current frame */
 function getActionHistory(scenes: SceneFrameRange[], currentFrame: number) {
   const events: { event: GameScript["rounds"][0]["events"][0]; round: number }[] = [];
-  let currentRound = 0;
   for (const scene of scenes) {
-    if (scene.startFrame > currentFrame) break;
-    if ("round" in scene.scene.data) {
-      currentRound = (scene.scene.data as { round: number }).round;
-    }
-  }
-  for (const scene of scenes) {
-    if (scene.startFrame > currentFrame) break;
+    // Only include scenes that have fully played (ended before current frame)
+    if (scene.startFrame + scene.durationInFrames > currentFrame) break;
     if (scene.type === "action") {
       const data = scene.scene.data as { event: GameScript["rounds"][0]["events"][0]; round: number };
-      if (data.round < currentRound) {
-        events.push({ event: data.event, round: data.round });
-      }
+      events.push({ event: data.event, round: data.round });
     }
   }
   return events;
@@ -98,11 +80,19 @@ export default function Video({ script, scenes, showSpeechHistory = false }: Vid
   const speechHistory = showSpeechHistory ? getSpeechHistory(scenes, frame) : [];
   const actionHistory = getActionHistory(scenes, frame);
 
-  // Gather audio sequences for speaking scenes
+  // Gather audio sequences for speaking and action scenes (wolf_discuss etc.)
   const audioSequences: { startFrame: number; audioFile: string }[] = [];
   for (const scene of scenes) {
     if (scene.type === "speaking") {
       const data = scene.scene.data as SpeakingData;
+      if (data.audioFile) {
+        audioSequences.push({
+          startFrame: scene.startFrame + data.tipEndFrame,
+          audioFile: data.audioFile,
+        });
+      }
+    } else if (scene.type === "action") {
+      const data = scene.scene.data as import("./timeline").ActionData;
       if (data.audioFile) {
         audioSequences.push({
           startFrame: scene.startFrame + data.tipEndFrame,

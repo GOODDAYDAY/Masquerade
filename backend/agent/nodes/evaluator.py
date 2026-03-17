@@ -20,7 +20,7 @@ _DEFAULT_THRESHOLD = 6.0
 _DEFAULT_MAX_RETRIES = 2
 
 # Heuristics for identifying speech content fields (same as optimizer)
-_SPEECH_DESC_HINTS = ("发言", "内容", "说", "看法", "推理", "遗言")
+_SPEECH_DESC_HINTS = ("发言", "内容", "说", "看法", "推理", "遗言", "动作", "手势")
 
 # Heuristics for identifying player-target fields
 _TARGET_NAME_HINTS = ("target", "player_id")
@@ -158,7 +158,17 @@ async def evaluator_node(state: AgentState, llm_client: LLMClient) -> dict:
         private_info=json.dumps(state.get("private_info", {}), ensure_ascii=False),
     )
 
-    messages = [{"role": "user", "content": prompt}]
+    # Evaluator gets full context — needs memory to verify factual claims,
+    # needs public_state to cross-check references, needs private_info to catch
+    # inconsistencies (e.g. seer reporting wrong check result)
+    from backend.agent.nodes.base import build_node_messages
+    messages = build_node_messages(
+        state, prompt,
+        include_memory=True,
+        include_public_state=True,
+        include_private_info=False,  # already in prompt template via {private_info}
+    )
+
     response = await llm_client.chat(messages, temperature=0.3)
 
     threshold = state.get("evaluation_threshold", _DEFAULT_THRESHOLD)

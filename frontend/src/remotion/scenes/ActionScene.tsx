@@ -50,11 +50,23 @@ export default function ActionScene({
   const label = ACTION_LABELS[actionType] ?? actionType;
   const strategyTip = event.strategy_tip ?? "";
 
-  const textContent = payload["gesture"] ?? payload["content"] ?? "";
-  const targetId = payload["target"] ?? payload["target_player_id"] ?? "";
+  // Safely extract payload values — AI may return nested objects instead of strings
+  const safeStr = (v: unknown): string => {
+    if (v == null) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "object") {
+      // Handle nested {use: "poison", target: "xxx"} style objects
+      const obj = v as Record<string, unknown>;
+      return String(obj["use"] ?? obj["action"] ?? obj["content"] ?? obj["target"] ?? JSON.stringify(v));
+    }
+    return String(v);
+  };
+  const textContent = safeStr(payload["gesture"]) || safeStr(payload["content"]) || "";
+  const targetId = safeStr(payload["target"]) || safeStr(payload["target_player_id"]) || "";
   const targetPlayer = targetId ? players.find((p) => p.id === targetId) : null;
-  const witchUse = payload["use"] ?? "";
-  const deathNames = payload["deaths"] ?? "";
+  const rawUse = payload["use"];
+  const witchUse = typeof rawUse === "object" && rawUse ? safeStr((rawUse as Record<string, unknown>)["use"] ?? rawUse) : safeStr(rawUse);
+  const deathNames = safeStr(payload["deaths"]);
   const hasText = textContent.length > 0;
 
   const isTipPhase = strategyTip && frame < tipEndFrame;

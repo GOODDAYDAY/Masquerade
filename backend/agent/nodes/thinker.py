@@ -7,6 +7,7 @@ Payload construction is generic: uses tools_schema to determine field names.
 import json
 
 from backend.agent.llm_client import LLMClient
+from backend.agent.nodes.base import build_node_messages
 from backend.agent.state import AgentState
 from backend.core.logging import get_logger
 
@@ -19,12 +20,9 @@ _TARGET_DESC_HINTS = ("玩家", "player", "ID")
 
 async def thinker_node(state: AgentState, llm_client: LLMClient) -> dict:
     """Analyze the situation and propose a strategy using game-specific prompt."""
-    messages = list(state.get("memory_context", []))
-
-    system_msg = state.get("game_rules_prompt", "") + "\n\n" + state.get("persona", "")
-    messages.insert(0, {"role": "system", "content": system_msg})
-
-    # Use the game-specific thinker prompt
+    # Build thinker prompt with game-specific template
+    # Note: thinker prompt template already includes {public_state} and {private_info}
+    # placeholders, so we pass include_public_state=False to avoid duplication
     prompt_template = state.get("thinker_prompt", "")
     user_prompt = prompt_template.format(
         player_id=state.get("player_id", ""),
@@ -39,16 +37,14 @@ async def thinker_node(state: AgentState, llm_client: LLMClient) -> dict:
         user_prompt += "\n\n上次策略被评估为不够好，反馈如下：\n" + feedback
         user_prompt += "\n请重新分析并改进你的策略。"
 
-    # Append player name reminder — prevents LLM from using numbers/codes
-    alive_players = state.get("public_state", {}).get("alive_players", [])
-    if alive_players:
-        user_prompt += (
-            "\n\n【重要提醒】当前存活玩家名字：%s。"
-            "你必须使用这些真实名字，绝对不能用编号（如1号、3号）或代号（如玩家A、玩家B）。"
-            % "、".join(alive_players)
-        )
-
-    messages.append({"role": "user", "content": user_prompt})
+    # Thinker's prompt template already embeds public_state and private_info,
+    # so we only add memory + alive players via base builder
+    messages = build_node_messages(
+        state, user_prompt,
+        include_memory=True,
+        include_public_state=False,  # already in prompt template
+        include_private_info=False,  # already in prompt template
+    )
 
     player_id = state.get("player_id", "?")
     retry_count = state.get("retry_count", 0)

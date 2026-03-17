@@ -50,6 +50,10 @@ export interface ActionData {
   eventIndex: number;
   /** Frame (relative to scene start) where tip phase ends */
   tipEndFrame: number;
+  /** Audio file path (for wolf_discuss etc.), null if no audio */
+  audioFile: string | null;
+  /** Audio duration in frames */
+  audioDurationFrames: number;
 }
 
 export interface VotingData {
@@ -191,14 +195,25 @@ export function buildFrameTimeline(
       } else if (actionType === "vote") {
         // Individual vote events are skipped — handled by VotingScene aggregate
       } else {
-        // Action scene
+        // Action scene (may have audio for wolf_discuss, last_words etc.)
         const tip = event.strategy_tip ?? "";
         const tipMs = tipDurationMs(tip);
         const tipFrames = msToFrames(tipMs, fps);
 
         const textContent = event.action.payload["gesture"] ?? event.action.payload["content"] ?? "";
-        const hasText = textContent.length > 0;
-        const contentMs = hasText ? typewriterMs(textContent) + 800 : 3000;
+        const hasText = typeof textContent === "string" && textContent.length > 0;
+
+        // Check for audio (wolf_discuss gesture descriptions get TTS too)
+        const audioKey = `${round.round_number}_${eventIndex}_${event.player_id}`;
+        const audioDurationMs = audioDurations.get(audioKey) ?? 0;
+        const audioFrames = msToFrames(audioDurationMs, fps);
+        const audioFile = audioDurationMs > 0
+          ? `audio/${gameId}/${round.round_number}_${eventIndex}_${event.player_id}.mp3`
+          : null;
+
+        const contentMs = hasText
+          ? Math.max(audioDurationMs, typewriterMs(textContent)) + 800
+          : 3000;
 
         addScene(
           {
@@ -208,6 +223,8 @@ export function buildFrameTimeline(
               round: round.round_number,
               eventIndex,
               tipEndFrame: tipFrames,
+              audioFile,
+              audioDurationFrames: audioFrames,
             },
           },
           tipMs + contentMs,
