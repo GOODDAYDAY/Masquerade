@@ -5,6 +5,7 @@ shared graph structure, private knowledge, and cognitive bias.
 All computation is programmatic — zero LLM calls.
 """
 
+from backend.core.logging import get_logger
 from backend.reasoning.cognitive_bias import apply_bias_to_trust
 from backend.reasoning.models import (
     CognitiveBias,
@@ -13,6 +14,8 @@ from backend.reasoning.models import (
 )
 from backend.reasoning.private_overlay import PrivateOverlay
 from backend.reasoning.shared_graph import SharedGraph
+
+logger = get_logger("reasoning.reasoner")
 
 
 class Reasoner:
@@ -31,10 +34,16 @@ class Reasoner:
         alive_players: list[str],
     ) -> tuple[dict[str, float], dict[str, float], list[ReasoningChain]]:
         """Execute full reasoning pipeline, return (trust, suspicion, chains)."""
+        # 1. Compute base trust/suspicion from public graph (defense, accusation, conflicts)
         base_trust, base_suspicion = self._compute_base_scores(shared, alive_players, player_id)
+        # 2. Override with private knowledge (seer results, teammate info)
         trust, suspicion = self._apply_private_knowledge(overlay, base_trust, base_suspicion)
+        # 3. Apply cognitive bias to adjust trust (conformist boost, etc.)
         trust = apply_bias_to_trust(trust, bias, shared.get_vote_alignment(), player_id)
+        # 4. Build reasoning chains from graph paths and private inferences
         chains = self._build_reasoning_chains(shared, overlay, bias, player_id)
+        logger.debug("[%s] Reasoning complete: %d trust scores, %d chains",
+                      player_id, len(trust), len(chains))
         return trust, suspicion, chains
 
     # ══════════════════════════════════════════════
@@ -48,9 +57,11 @@ class Reasoner:
         player_id: str,
     ) -> tuple[dict[str, float], dict[str, float]]:
         """Compute base trust/suspicion from public graph edges."""
+        # Initialize: all alive players start at neutral trust, zero suspicion
         trust: dict[str, float] = {p: 0.5 for p in alive_players if p != player_id}
         suspicion: dict[str, float] = {p: 0.0 for p in alive_players if p != player_id}
 
+        # Adjust based on public graph signals
         self._apply_defense_signals(shared, trust, player_id)
         self._apply_accusation_signals(shared, suspicion, player_id)
         self._apply_conflict_signals(shared, suspicion)
@@ -154,9 +165,13 @@ class Reasoner:
     ) -> list[ReasoningChain]:
         """Build reasoning chains from graph paths and private inferences."""
         chains: list[ReasoningChain] = []
+        # Chains from private knowledge (seer verified wolf → defender is suspect)
         chains.extend(self._chains_from_private_inferences(overlay))
+        # Chains from role claim conflicts (two prophets → one is fake)
         chains.extend(self._chains_from_role_conflicts(shared))
+        # Chains from suspicious vote alignment (same target 2+ rounds)
         chains.extend(self._chains_from_vote_patterns(shared, player_id))
+        # Filter by cognitive bias threshold and sort by confidence
         chains = self._filter_chains_by_bias(chains, bias)
         return chains
 

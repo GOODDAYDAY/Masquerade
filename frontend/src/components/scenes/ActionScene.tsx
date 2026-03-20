@@ -121,7 +121,7 @@ export default function ActionScene({
         const s = maxPer >= defI ? 1 : maxPer / defI;
         const sI = Math.floor(defI * s), sA = Math.floor(defA * s);
         return (
-      <div className="flex gap-3 justify-center mb-3 flex-wrap">
+      <div className="flex gap-3 justify-center mb-3">
         {players.map((p) => {
           const isActive = p.id === event.player_id;
           const isOut = eliminatedIds.includes(p.id);
@@ -177,7 +177,7 @@ export default function ActionScene({
           hasText ? (
             /* Text content mode: gesture/speech in a bubble */
             <motion.div
-              className={`border rounded-2xl px-6 py-5 max-w-xl w-full ${
+              className={`border rounded-2xl px-6 py-5 max-w-xl w-full text-center ${
                 isNight ? "bg-gray-800/60 border-gray-700" : "bg-theater-surface border-theater-border"
               }`}
               initial={{ opacity: 0, y: 8 }}

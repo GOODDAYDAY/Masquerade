@@ -6,7 +6,10 @@ Phase 2 (future): LLM-assisted extraction for speech semantic analysis.
 
 import re
 
+from backend.core.logging import get_logger
 from backend.reasoning.models import EdgeType, GraphEdge
+
+logger = get_logger("reasoning.extractor")
 
 
 # Keywords that indicate role claims in speech content
@@ -51,9 +54,13 @@ class EventExtractor:
     ) -> list[GraphEdge]:
         """Extract all public relations from one round of engine data."""
         edges: list[GraphEdge] = []
+        # Extract structured events from engine state
         edges.extend(self._extract_votes(round_number, public_state))
         edges.extend(self._extract_deaths(round_number, public_state))
+        # Extract semantic relations from speech content (keyword-based)
         edges.extend(self._extract_speech_relations(round_number, round_actions))
+        logger.debug("Round %d: extracted %d public edges (%d actions analyzed)",
+                      round_number, len(edges), len(round_actions))
         return edges
 
     def extract_private_events(
@@ -64,7 +71,9 @@ class EventExtractor:
     ) -> list[GraphEdge]:
         """Extract private relations from a player's private info."""
         edges: list[GraphEdge] = []
+        # Seer check results → VERIFIED edges
         edges.extend(self._extract_verifications(player_id, round_number, private_info))
+        # Werewolf teammate knowledge → TEAMMATE edges
         edges.extend(self._extract_teammate_info(player_id, round_number, private_info))
         return edges
 

@@ -21,3 +21,4 @@
 | REQ-017 | UI Layout Fix & AI Intelligence Upgrade | Completed | 2026-03-17 | Avatar responsive layout for 12 players, subtitle auto-scroll, and systematic AI speech quality upgrade with meta-knowledge injection |
 | REQ-018 | GraphRAG Reasoning for Board Games | Completed | 2026-03-20 | Game Reasoning Graph: structured knowledge graph reasoning for board game AI — shared graph + private overlay + cognitive bias differentiation, integrated into Thinker/Evaluator pipeline |
 | REQ-019 | Method as Documentation Refactor | Completed | 2026-03-20 | Refactored 7 backend files to "Method as Documentation" pattern: thinker/evaluator/optimizer nodes, player, llm_client, runner, tts/generate |
+| REQ-020 | Game Display Fixes | Completed | 2026-03-20 | Witch antidote target in payload, remove flex-wrap for avatar row, center-align speech text |

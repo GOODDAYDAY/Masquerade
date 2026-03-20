@@ -620,6 +620,8 @@ class WerewolfGame(GameEngine):
                 raise IllegalActionError("No one to save tonight")
             self.night_witch_save = True
             self.witch_antidote_used = True
+            # Write saved target into payload so frontend can unmark death
+            action.payload["target"] = self.night_wolf_target
             logger.info("Round %d: witch uses antidote to save %s", self.round_number, self.night_wolf_target)
         elif use == "poison":
             if self.witch_poison_used:

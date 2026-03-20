@@ -5,6 +5,7 @@ a single player: seer verification results, werewolf teammate knowledge,
 and inferences derived from combining private knowledge with public facts.
 """
 
+from backend.core.logging import get_logger
 from backend.reasoning.models import (
     Conflict,
     ConflictSeverity,
@@ -13,6 +14,8 @@ from backend.reasoning.models import (
     ReasoningChain,
 )
 from backend.reasoning.shared_graph import SharedGraph
+
+logger = get_logger("reasoning.private_overlay")
 
 
 class PrivateOverlay:
@@ -42,11 +45,14 @@ class PrivateOverlay:
         """Derive private inferences from private knowledge + public graph."""
         self._inferences.clear()
         self._private_conflicts.clear()
-        self._infer_wolf_defenders(shared)
-        self._infer_good_accusers(shared)
-        self._infer_teammate_coordination(shared)
-        self._detect_vote_against_known_good(shared)
-        self._detect_defense_of_known_wolf(shared)
+        # Cross-reference private knowledge against public behavior
+        self._infer_wolf_defenders(shared)      # Who defends a known wolf?
+        self._infer_good_accusers(shared)        # Who accuses a known good player?
+        self._infer_teammate_coordination(shared) # Is my teammate exposing us?
+        self._detect_vote_against_known_good(shared)  # Who voted against verified good?
+        self._detect_defense_of_known_wolf(shared)    # Who defended a verified wolf?
+        logger.debug("[%s] Derived %d inferences, %d private conflicts",
+                      self._player_id, len(self._inferences), len(self._private_conflicts))
 
     def get_private_conflicts(self) -> list[Conflict]:
         return list(self._private_conflicts)
@@ -76,10 +82,13 @@ class PrivateOverlay:
             result = edge.attrs.get("result", "")
             if result == "wolf":
                 self._known_wolves.add(edge.target)
+                logger.info("[%s] Learned: %s is wolf (verified)", self._player_id, edge.target)
             elif result == "good":
                 self._known_good.add(edge.target)
+                logger.info("[%s] Learned: %s is good (verified)", self._player_id, edge.target)
         elif edge.type == EdgeType.TEAMMATE:
             self._teammates.add(edge.target)
+            logger.info("[%s] Learned: %s is teammate", self._player_id, edge.target)
 
     def _infer_wolf_defenders(self, shared: SharedGraph) -> None:
         """If someone defends a known wolf → they are suspicious."""

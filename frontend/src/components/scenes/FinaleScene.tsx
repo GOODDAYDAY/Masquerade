@@ -63,7 +63,7 @@ export default function FinaleScene({ result, players, onComplete }: FinaleScene
       </motion.h1>
 
       {/* Players with words and roles */}
-      <motion.div className="flex gap-5 justify-center mb-8 flex-wrap"
+      <motion.div className="flex gap-5 justify-center mb-8"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8, duration: 0.5 }}>
         {players.map((p) => (
           <motion.div key={p.id}

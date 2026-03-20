@@ -55,7 +55,7 @@ export default function VotingScene({ voteResult, players, onComplete }: VotingS
   return (
     <div className="h-full flex flex-col items-center justify-center px-6">
       {/* Player row with words + vote count */}
-      <div className="flex gap-5 mb-8 flex-wrap justify-center">
+      <div className="flex gap-5 mb-8 justify-center">
         {players.map((p) => {
           const isOut = previouslyEliminated.includes(p.id) || (showResult && voteResult.eliminated === p.id);
           return (

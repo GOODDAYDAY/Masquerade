@@ -7,6 +7,7 @@ after each round update, so N players can read them at zero cost.
 
 import networkx as nx
 
+from backend.core.logging import get_logger
 from backend.reasoning.models import (
     Conflict,
     ConflictSeverity,
@@ -14,6 +15,8 @@ from backend.reasoning.models import (
     GraphEdge,
     NodeType,
 )
+
+logger = get_logger("reasoning.shared_graph")
 
 
 class SharedGraph:
@@ -36,8 +39,12 @@ class SharedGraph:
     def update(self, round_number: int, edges: list[GraphEdge]) -> None:
         """Write new edges and refresh all cached analysis. Called once per round."""
         self._current_round = round_number
+        # 1. Write new relation edges into the graph
         self._add_edges(edges)
+        # 2. Refresh all cached analysis (conflicts, alignment, clusters, summary)
         self._refresh_public_analysis(round_number)
+        logger.info("SharedGraph updated: round=%d, total_nodes=%d, total_edges=%d",
+                     round_number, self._graph.number_of_nodes(), self._graph.number_of_edges())
 
     def get_public_conflicts(self) -> list[Conflict]:
         return list(self._public_conflicts)
@@ -98,18 +105,27 @@ class SharedGraph:
 
     def _refresh_public_analysis(self, round_number: int) -> None:
         """Refresh all public analysis caches (orchestration method)."""
+        # 1. Scan for contradictions (speech-vote, role claims, attitude flips)
         self._detect_public_conflicts(round_number)
+        # 2. Compute pairwise vote alignment matrix
         self._compute_vote_alignment()
+        # 3. Cluster players into suspected factions
         self._compute_faction_clusters()
+        # 4. Generate human-readable summary text
         self._generate_public_summary()
 
     def _detect_public_conflicts(self, round_number: int) -> None:
         """Scan graph for public contradictions."""
         conflicts: list[Conflict] = []
+        # Check: did anyone accuse X but vote for Y?
         conflicts.extend(self._find_vote_speech_contradictions(round_number))
+        # Check: did multiple players claim the same unique role?
         conflicts.extend(self._find_role_claim_conflicts())
+        # Check: did anyone flip from accusing to defending the same person?
         conflicts.extend(self._find_attitude_flips(round_number))
         self._public_conflicts = conflicts
+        logger.debug("Conflict detection: %d conflicts found in round %d",
+                      len(conflicts), round_number)
 
     def _find_vote_speech_contradictions(self, round_number: int) -> list[Conflict]:
         """Detect speech-vote contradictions: accused X but voted for Y."""
@@ -247,7 +263,9 @@ class SharedGraph:
                 "faction_%d" % (i + 1): sorted(list(c))
                 for i, c in enumerate(communities)
             }
+            logger.debug("Faction clustering: %d communities found", len(self._faction_clusters))
         except Exception:
+            logger.debug("Faction clustering failed (insufficient edges), skipping")
             self._faction_clusters = {}
 
     def _generate_public_summary(self) -> None:

@@ -101,10 +101,17 @@ class GameReasoningGraph:
         if not overlay or not bias:
             return ""
 
+        # 1. Run trust/suspicion reasoning with cognitive bias applied
         trust, suspicion, chains = self._run_reasoning(player_id, overlay, bias, alive_players)
+        # 2. Collect and sort conflicts (public + private, bias-weighted)
         conflicts = self._collect_all_conflicts(player_id, overlay, bias)
+        # 3. Build structured summary from all reasoning outputs
         summary = self._build_summary(trust, suspicion, conflicts, chains, bias)
-        return self._summarizer.to_thinker_text(summary)
+        # 4. Format as injectable text block
+        text = self._summarizer.to_thinker_text(summary)
+        logger.debug("[%s] Thinker context generated: %d chars, %d conflicts, %d chains",
+                      player_id, len(text), len(conflicts), len(chains))
+        return text
 
     def get_evaluator_context(self, player_id: str) -> str:
         """Get conflict list text for Evaluator prompt injection."""

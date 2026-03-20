@@ -99,7 +99,7 @@ export default function SpeakingScene({
   return (
     <div className="h-full flex flex-col px-6 py-4">
       {/* Avatar row — responsive sizing */}
-      <div className="flex gap-3 justify-center mb-3 flex-wrap">
+      <div className="flex gap-3 justify-center mb-3">
         {players.map((p) => {
           const isActive = p.id === event.player_id;
           const isOut = eliminatedIds.includes(p.id);
@@ -151,7 +151,7 @@ export default function SpeakingScene({
         {phase === "speech" && (
           <motion.div
             ref={speechBubbleRef}
-            className="bg-theater-surface border border-theater-border rounded-2xl px-6 py-5 max-w-xl w-full max-h-48 overflow-y-auto"
+            className="bg-theater-surface border border-theater-border rounded-2xl px-6 py-5 max-w-xl w-full max-h-48 overflow-y-auto text-center"
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <AnimatedText text={speechContent} speed={TEXT_SPEED} playbackSpeed={speed}
               className="text-base text-gray-200 leading-relaxed" />
