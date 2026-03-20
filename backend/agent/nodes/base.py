@@ -1,13 +1,101 @@
-"""Shared context builder for all agent decision nodes.
+"""Shared utilities for all agent decision nodes.
 
-Ensures thinker, evaluator, and optimizer all receive consistent game context.
-Each node calls build_node_messages() instead of manually assembling LLM messages.
+Provides:
+- build_node_messages(): consistent LLM message assembly
+- parse_llm_json(): markdown-fence-aware JSON parsing
+- tools_schema helpers: find_tool(), is_player_field(), has_speech_field()
+- Shared constants for field detection heuristics
 """
 
 import json
 
 from backend.agent.state import AgentState
 
+
+# ══════════════════════════════════════════════
+#  Shared constants — field detection heuristics
+# ══════════════════════════════════════════════
+
+# Heuristics for identifying player-target fields
+TARGET_NAME_HINTS = ("target", "player_id")
+TARGET_DESC_HINTS = ("玩家", "player", "ID")
+
+# Heuristics for identifying speech/content fields worth LLM polishing or scoring
+SPEECH_DESC_HINTS = ("发言", "内容", "说", "看法", "推理", "遗言", "动作", "手势")
+
+
+# ══════════════════════════════════════════════
+#  JSON parsing — shared across all nodes
+# ══════════════════════════════════════════════
+
+def parse_llm_json(text: str) -> dict:
+    """Extract and parse JSON from LLM response, handling markdown fences.
+
+    Strips ```json ... ``` or ``` ... ``` wrappers before parsing.
+    Raises json.JSONDecodeError if parsing fails.
+    """
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0]
+    elif "```" in text:
+        text = text.split("```")[1].split("```")[0]
+    return json.loads(text.strip())
+
+
+# ══════════════════════════════════════════════
+#  tools_schema helpers — shared across nodes
+# ══════════════════════════════════════════════
+
+def find_tool(tools_schema: list[dict], action_type: str) -> dict | None:
+    """Find the tool definition matching the action type."""
+    for tool in tools_schema:
+        if tool.get("function", {}).get("name") == action_type:
+            return tool
+    return None
+
+
+def is_player_field(field_name: str, description: str) -> bool:
+    """Heuristic: does this field represent a player target?"""
+    if any(hint in field_name.lower() for hint in TARGET_NAME_HINTS):
+        return True
+    if any(hint in description for hint in TARGET_DESC_HINTS):
+        return True
+    return False
+
+
+def has_speech_field(action_type: str, tools_schema: list[dict]) -> bool:
+    """Check if an action type has a speech/content field worth LLM processing."""
+    tool = find_tool(tools_schema, action_type)
+    if not tool:
+        return False
+    params = tool.get("function", {}).get("parameters", {})
+    for field_name in params.get("required", []):
+        prop = params.get("properties", {}).get(field_name, {})
+        desc = prop.get("description", "")
+        if any(hint in desc for hint in SPEECH_DESC_HINTS):
+            return True
+    return False
+
+
+def find_speech_field(action_type: str, tools_schema: list[dict]) -> str | None:
+    """Find the text content field name that benefits from LLM polishing.
+
+    Returns None if no speech field found — caller should skip LLM.
+    """
+    tool = find_tool(tools_schema, action_type)
+    if not tool:
+        return None
+    params = tool.get("function", {}).get("parameters", {})
+    for field_name in params.get("required", []):
+        prop = params.get("properties", {}).get(field_name, {})
+        desc = prop.get("description", "")
+        if any(hint in desc for hint in SPEECH_DESC_HINTS):
+            return field_name
+    return None
+
+
+# ══════════════════════════════════════════════
+#  LLM message assembly
+# ══════════════════════════════════════════════
 
 def build_node_messages(
     state: AgentState,
@@ -19,20 +107,10 @@ def build_node_messages(
 ) -> list[dict]:
     """Build LLM messages with full game context.
 
-    Structure (mirrors thinker's proven pattern):
+    Structure:
       1. System message: game_rules + persona
       2. Memory context messages (if include_memory)
       3. User message: node-specific prompt + game state appendix
-
-    Args:
-        state: Full agent state from the LangGraph workflow.
-        user_prompt: The node-specific prompt (thinker/evaluator/optimizer template).
-        include_memory: Inject prior thinking and public events as context messages.
-        include_public_state: Append public_state JSON to user prompt.
-        include_private_info: Append private_info JSON to user prompt.
-
-    Returns:
-        List of chat messages ready for LLM call.
     """
     messages: list[dict] = []
 

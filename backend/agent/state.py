@@ -41,6 +41,10 @@ class AgentState(TypedDict, total=False):
     expression: str
     strategy_tip: str
 
+    # --- Graph Reasoning (optional, injected by runner) ---
+    grg_thinker_context: str
+    grg_evaluator_context: str
+
     # --- Final output ---
     final_action_type: str
     final_action_payload: dict

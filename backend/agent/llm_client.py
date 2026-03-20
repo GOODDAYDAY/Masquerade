@@ -1,7 +1,5 @@
 """LLM client wrapper — unified OpenAI-compatible API interface."""
 
-import json
-
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
@@ -23,7 +21,7 @@ class LLMResponse(BaseModel):
 
 
 class LLMClient:
-    """Async LLM client supporting chat and tool-calling via OpenAI-compatible API."""
+    """Async LLM client supporting chat via OpenAI-compatible API."""
 
     def __init__(
         self,
@@ -48,6 +46,12 @@ class LLMClient:
         temperature: float = 0.7,
     ) -> str:
         """Simple chat completion, returns text content."""
+        return await self._chat_with_retries(messages, temperature)
+
+    async def _chat_with_retries(
+        self, messages: list[dict], temperature: float,
+    ) -> str:
+        """Execute chat completion with retry logic."""
         for attempt in range(1, self.max_retries + 1):
             try:
                 response = await self.client.chat.completions.create(

@@ -46,16 +46,47 @@ class PlayerAgent:
         available_actions: list[str],
         tools_schema: list[dict],
         strategy: AgentStrategy,
+        grg_thinker_context: str = "",
+        grg_evaluator_context: str = "",
     ) -> AgentResponse:
-        """Run the full decision pipeline and return a structured response.
-
-        The strategy parameter carries game-specific prompt templates,
-        injected by the orchestrator from the engine.
-        """
+        """Run the full decision pipeline and return a structured response."""
         start_time = time.monotonic()
+        # 1. Assemble all inputs into LangGraph initial state
+        initial_state = self._build_initial_state(
+            game_rules_prompt, public_state, private_info,
+            available_actions, tools_schema, strategy,
+            grg_thinker_context, grg_evaluator_context,
+        )
+        # 2. Run LangGraph workflow (Thinker → Evaluator → Optimizer)
+        result = await self._invoke_graph(initial_state, available_actions, start_time)
+        # 3. Extract and assemble final response from graph output
+        response = self._build_response(result, available_actions, start_time)
+        # 4. Store thinking in private memory for next-round context
+        self.memory.add_private(response.thinking)
 
-        # Build initial state for the LangGraph
-        initial_state: AgentState = {
+        return response
+
+    def update_public_memory(self, event_summary: str) -> None:
+        """Add a public event to this player's memory."""
+        self.memory.add_public(event_summary)
+
+    # ══════════════════════════════════════════════
+    #  Private step methods
+    # ══════════════════════════════════════════════
+
+    def _build_initial_state(
+        self,
+        game_rules_prompt: str,
+        public_state: dict,
+        private_info: dict,
+        available_actions: list[str],
+        tools_schema: list[dict],
+        strategy: AgentStrategy,
+        grg_thinker_context: str,
+        grg_evaluator_context: str,
+    ) -> AgentState:
+        """Assemble the initial LangGraph state from all inputs."""
+        return {
             "player_id": self.player_id,
             "game_rules_prompt": game_rules_prompt,
             "public_state": public_state,
@@ -66,7 +97,8 @@ class PlayerAgent:
             "memory_context": self.memory.build_context_messages(),
             "retry_count": 0,
             "evaluation_feedback": "",
-            # Strategy prompts from engine
+            "grg_thinker_context": grg_thinker_context,
+            "grg_evaluator_context": grg_evaluator_context,
             "thinker_prompt": strategy.thinker_prompt,
             "evaluator_prompt": strategy.evaluator_prompt,
             "optimizer_prompt": strategy.optimizer_prompt,
@@ -74,35 +106,38 @@ class PlayerAgent:
             "max_retries_limit": strategy.max_retries,
         }
 
-        # Invoke the LangGraph workflow
+    async def _invoke_graph(
+        self, initial_state: AgentState, available_actions: list[str], start_time: float,
+    ) -> dict:
+        """Invoke the LangGraph workflow, falling back on failure."""
         try:
-            result = await self.graph.ainvoke(initial_state)
+            return await self.graph.ainvoke(initial_state)
         except Exception as e:
             logger.exception("Graph execution failed for player %s: %s", self.player_id, e)
-            return self._fallback_response(available_actions, start_time)
+            return self._build_fallback_result(available_actions)
 
+    def _build_fallback_result(self, available_actions: list[str]) -> dict:
+        """Build a minimal result dict when graph execution fails."""
+        action_type = available_actions[0] if available_actions else "speak"
+        return {
+            "final_action_type": action_type,
+            "final_action_payload": {"content": "..."},
+            "situation_analysis": "[Fallback] Graph execution failed",
+            "strategy": "",
+            "evaluation_feedback": "",
+            "expression": "neutral",
+            "evaluation_score": 0,
+            "strategy_tip": "",
+        }
+
+    def _build_response(
+        self, result: dict, available_actions: list[str], start_time: float,
+    ) -> AgentResponse:
+        """Extract and assemble the final response from graph result."""
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
-
-        # Extract results from the final graph state
         action_type = result.get("final_action_type", available_actions[0] if available_actions else "speak")
         action_payload = result.get("final_action_payload", {})
-
-        # Build thinking summary from all stages
-        # LLM may return str or dict for these fields — normalize to str
-        thinking_parts = []
-        if result.get("situation_analysis"):
-            val = result["situation_analysis"]
-            thinking_parts.append("【局势分析】" + (json.dumps(val, ensure_ascii=False) if isinstance(val, dict) else str(val)))
-        if result.get("strategy"):
-            val = result["strategy"]
-            thinking_parts.append("【策略】" + (json.dumps(val, ensure_ascii=False) if isinstance(val, dict) else str(val)))
-        if result.get("evaluation_feedback"):
-            val = result["evaluation_feedback"]
-            thinking_parts.append("【评估反馈】" + (json.dumps(val, ensure_ascii=False) if isinstance(val, dict) else str(val)))
-        full_thinking = "\n".join(thinking_parts) if thinking_parts else "No detailed thinking"
-
-        # Store thinking in private memory
-        self.memory.add_private(full_thinking)
+        full_thinking = self._assemble_thinking(result)
 
         action = Action(
             type=action_type,
@@ -124,20 +159,25 @@ class PlayerAgent:
             strategy_tip=result.get("strategy_tip", ""),
         )
 
-    def update_public_memory(self, event_summary: str) -> None:
-        """Add a public event to this player's memory."""
-        self.memory.add_public(event_summary)
+    def _assemble_thinking(self, result: dict) -> str:
+        """Assemble the thinking summary from all stage outputs."""
+        parts = []
+        for label, key in [
+            ("【局势分析】", "situation_analysis"),
+            ("【策略】", "strategy"),
+            ("【评估反馈】", "evaluation_feedback"),
+        ]:
+            val = result.get(key)
+            if val:
+                text = json.dumps(val, ensure_ascii=False) if isinstance(val, dict) else str(val)
+                parts.append(label + text)
+        return "\n".join(parts) if parts else "No detailed thinking"
 
     def _fallback_response(
         self, available_actions: list[str], start_time: float,
         tools_schema: list[dict] | None = None,
     ) -> AgentResponse:
-        """Generate a minimal valid response when the graph fails.
-
-        Uses tools_schema to build a generic fallback payload — no hardcoded
-        action types. Text fields get "...", target fields get empty string
-        (force-fix in evaluator will correct targets).
-        """
+        """Generate a minimal valid response when the graph fails."""
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
         action_type = available_actions[0] if available_actions else "speak"
         payload = _build_fallback_payload(action_type, tools_schema or [])
@@ -160,5 +200,4 @@ def _build_fallback_payload(action_type: str, tools_schema: list[dict]) -> dict:
             for field_name in required:
                 payload[field_name] = "..."
             return payload if payload else {"content": "..."}
-    # No matching tool — generic fallback
     return {"content": "..."}
